@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <vector>
 #include <cstdint>
 
 #include "forgedb/record/record_id.h"
@@ -35,6 +36,8 @@ public:
     void remove(
         RecordId recordId
     );
+
+    [[nodiscard]] std::vector<Tuple> scan();
 
 private:
     Schema schema_;

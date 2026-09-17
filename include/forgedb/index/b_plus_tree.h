@@ -107,6 +107,8 @@ private:
         RecordId recordId
     );
 
+    void rebalanceAfterDelete(Node& node);
+
     void refreshSeparators(Node& node);
 
     [[nodiscard]] static bool entriesEqual(

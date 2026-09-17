@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <vector>
+#include <optional>
 
 #include "forgedb/buffer/buffer_pool_manager.h"
 #include "forgedb/record/record_id.h"
@@ -14,7 +15,8 @@ class HeapFile {
 public:
     HeapFile(
         DiskManager& diskManager,
-        BufferPoolManager& bufferPoolManager
+        BufferPoolManager& bufferPoolManager,
+        std::optional<PageId> metadataPageId = std::nullopt
     );
 
     [[nodiscard]] RecordId insert(
@@ -32,6 +34,8 @@ public:
 
     void erase(RecordId recordId);
 
+    [[nodiscard]] std::vector<RecordId> scan() const;
+
 private:
     [[nodiscard]] Page* fetchPage(PageId pageId);
 
@@ -39,8 +43,12 @@ private:
         PageId& pageId
     );
 
+    [[nodiscard]] std::vector<PageId> dataPages() const;
+    void persistDataPages(const std::vector<PageId>& pages);
+
     DiskManager& diskManager_;
     BufferPoolManager& bufferPoolManager_;
+    std::optional<PageId> metadataPageId_;
 };
 
 } // namespace forgedb

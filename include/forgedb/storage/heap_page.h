@@ -93,6 +93,8 @@ private:
         std::uint32_t slot
     ) const;
 
+    void compactWithUpdatedRecord(std::uint32_t slot, std::span<const Byte> record);
+
     Page& page_;
 };
 

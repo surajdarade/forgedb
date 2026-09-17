@@ -39,7 +39,7 @@ public:
 
     void setNextPageId(PageId pageId) noexcept;
 
-    [[nodiscard]] const IndexKey& keyAt(
+    [[nodiscard]] IndexKey keyAt(
         std::size_t index
     ) const;
 
@@ -58,6 +58,12 @@ public:
     [[nodiscard]] std::vector<RecordId> lookup(
         const IndexKey& key
     ) const;
+
+    [[nodiscard]] Entry entryAt(std::size_t index) const;
+
+    [[nodiscard]] std::vector<Entry> entries() const;
+
+    void rewrite(const std::vector<Entry>& entries);
 
     [[nodiscard]] bool insert(
         const IndexKey& key,

@@ -68,9 +68,7 @@ std::size_t Column::storageSize() const noexcept
         return length_;
     }
 
-    throw std::logic_error(
-        "Column: unknown data type"
-    );
+    return 0;
 }
 
 } // namespace forgedb

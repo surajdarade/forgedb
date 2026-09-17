@@ -493,6 +493,14 @@ void BPlusTreeInternalPage::rewrite(
     setEntryCount(keys.size());
 }
 
+std::vector<IndexKey> BPlusTreeInternalPage::keys() const {
+    return readKeys();
+}
+
+std::vector<PageId> BPlusTreeInternalPage::children() const {
+    return readChildren();
+}
+
 std::size_t BPlusTreeInternalPage::serializedKeySize(
     const IndexKey& key)
 {

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <unordered_map>
 #include <vector>
+#include <optional>
 
 #include "forgedb/buffer/lru_replacer.h"
 #include "forgedb/common/page_id.h"
@@ -67,6 +68,8 @@ private:
     [[nodiscard]] std::size_t frameIndex(
         const Frame& frame
     ) const noexcept;
+
+    [[nodiscard]] std::optional<std::size_t> findFreeFrame() const noexcept;
 
     void resetFrame(Frame& frame) noexcept;
 

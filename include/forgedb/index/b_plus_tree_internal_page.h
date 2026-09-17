@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <vector>
 
 #include "forgedb/index/index_page.h"
 #include "forgedb/index/index_key.h"
@@ -53,6 +54,15 @@ public:
 
     [[nodiscard]] std::size_t freeSpace() const noexcept;
 
+    [[nodiscard]] std::vector<IndexKey> keys() const;
+
+    [[nodiscard]] std::vector<PageId> children() const;
+
+    void rewrite(
+        const std::vector<IndexKey>& keys,
+        const std::vector<PageId>& children
+    );
+
 private:
     static constexpr std::size_t kPayloadOffset =
         IndexPage::kHeaderSize;
@@ -60,11 +70,6 @@ private:
     [[nodiscard]] std::vector<IndexKey> readKeys() const;
 
     [[nodiscard]] std::vector<PageId> readChildren() const;
-
-    void rewrite(
-        const std::vector<IndexKey>& keys,
-        const std::vector<PageId>& children
-    );
 
     [[nodiscard]] static std::size_t serializedKeySize(
         const IndexKey& key

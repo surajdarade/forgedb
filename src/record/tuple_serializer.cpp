@@ -1,5 +1,6 @@
 #include "forgedb/record/tuple_serializer.h"
 
+#include <limits>
 #include <cstdint>
 #include <stdexcept>
 

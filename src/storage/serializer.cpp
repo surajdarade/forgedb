@@ -29,7 +29,7 @@ Unsigned readUnsigned(std::span<const Serializer::Byte> buffer,
     Unsigned value = 0;
 
     for (std::size_t i = 0; i < sizeof(Unsigned); ++i) {
-        value |= static_cast<Unsigned>(buffer[offset++]) << (i * 8);
+        value = static_cast<Unsigned>(value | (static_cast<Unsigned>(buffer[offset++]) << (i * 8)));
     }
 
     return value;

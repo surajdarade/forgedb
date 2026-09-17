@@ -40,8 +40,9 @@ Page* BufferPoolManager::fetchPage(PageId pageId)
 
     // Obtain an available frame from the LRU replacer.
     std::size_t victimFrameId;
-
-    if (!replacer_.victim(victimFrameId)) {
+    if (const auto freeFrame = findFreeFrame(); freeFrame.has_value()) {
+        victimFrameId = *freeFrame;
+    } else if (!replacer_.victim(victimFrameId)) {
         return nullptr;
     }
 
@@ -67,8 +68,9 @@ Page* BufferPoolManager::fetchPage(PageId pageId)
 Page* BufferPoolManager::newPage(PageId& pageId)
 {
     std::size_t frameId;
-
-    if (!replacer_.victim(frameId)) {
+    if (const auto freeFrame = findFreeFrame(); freeFrame.has_value()) {
+        frameId = *freeFrame;
+    } else if (!replacer_.victim(frameId)) {
         return nullptr;
     }
 
@@ -210,6 +212,13 @@ BufferPoolManager::findFrame(PageId pageId) const noexcept
     }
 
     return &frames_[iterator->second];
+}
+
+std::optional<std::size_t> BufferPoolManager::findFreeFrame() const noexcept {
+    for (std::size_t i = 0; i < frames_.size(); ++i) {
+        if (!frames_[i].isOccupied) return i;
+    }
+    return std::nullopt;
 }
 
 std::size_t BufferPoolManager::frameIndex(

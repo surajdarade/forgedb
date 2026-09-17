@@ -78,3 +78,8 @@ void Table::remove(RecordId recordId)
 }
 
 } // namespace forgedb
+std::vector<forgedb::Tuple> forgedb::Table::scan() {
+    std::vector<Tuple> tuples;
+    for (const RecordId id : heapFile_.scan()) tuples.push_back(get(id));
+    return tuples;
+}

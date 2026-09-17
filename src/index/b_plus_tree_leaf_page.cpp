@@ -138,6 +138,15 @@ IndexKey deserializeKey(
     }
 }
 
+
+int comparePageKeys(const IndexKey& lhs, const IndexKey& rhs) {
+    if (lhs.type() != rhs.type()) {
+        return static_cast<int>(lhs.type()) < static_cast<int>(rhs.type()) ? -1 : 1;
+    }
+    if (lhs == rhs) return 0;
+    return lhs < rhs ? -1 : 1;
+}
+
 } // namespace
 
 BPlusTreeLeafPage::BPlusTreeLeafPage(Page& page)
@@ -224,7 +233,7 @@ std::size_t BPlusTreeLeafPage::lowerBound(
             key,
             [](const Entry& entry,
                const IndexKey& value) {
-                return entry.key < value;
+                return comparePageKeys(entry.key, value) < 0;
             }
         ) - entries.begin()
     );
@@ -242,7 +251,7 @@ std::size_t BPlusTreeLeafPage::upperBound(
             key,
             [](const IndexKey& value,
                const Entry& entry) {
-                return value < entry.key;
+                return comparePageKeys(value, entry.key) < 0;
             }
         ) - entries.begin()
     );
@@ -262,7 +271,7 @@ std::vector<RecordId> BPlusTreeLeafPage::lookup(
             key,
             [](const Entry& entry,
                const IndexKey& value) {
-                return entry.key < value;
+                return comparePageKeys(entry.key, value) < 0;
             }
         );
 
@@ -275,12 +284,24 @@ std::vector<RecordId> BPlusTreeLeafPage::lookup(
             continue;
         }
 
-        if (key < current->key) {
+        if (comparePageKeys(key, current->key) < 0) {
             break;
         }
     }
 
     return result;
+}
+
+BPlusTreeLeafPage::Entry BPlusTreeLeafPage::entryAt(std::size_t index) const {
+    return readEntry(index);
+}
+
+std::vector<BPlusTreeLeafPage::Entry> BPlusTreeLeafPage::entries() const {
+    return readEntries();
+}
+
+void BPlusTreeLeafPage::rewrite(const std::vector<Entry>& entries) {
+    rewriteEntries(entries);
 }
 
 bool BPlusTreeLeafPage::insert(
@@ -506,7 +527,7 @@ bool BPlusTreeLeafPage::entryLess(
     const Entry& rhs)
 {
     if (lhs.key != rhs.key) {
-        return lhs.key < rhs.key;
+        return comparePageKeys(lhs.key, rhs.key) < 0;
     }
 
     return lhs.recordId < rhs.recordId;

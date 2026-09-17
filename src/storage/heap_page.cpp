@@ -161,9 +161,8 @@ void HeapPage::update(
     }
 
     if (record.size() > slotData.size) {
-        throw std::overflow_error(
-            "HeapPage: updated record does not fit"
-        );
+        compactWithUpdatedRecord(slot, record);
+        return;
     }
 
     std::memcpy(
@@ -172,10 +171,33 @@ void HeapPage::update(
         record.size()
     );
 
-    slotData.size =
-        static_cast<std::uint16_t>(record.size());
-
+    slotData.size = static_cast<std::uint16_t>(record.size());
     writeSlot(slot, slotData);
+}
+
+void HeapPage::compactWithUpdatedRecord(std::uint32_t slot, std::span<const Byte> record) {
+    const std::size_t count = recordCount();
+    std::vector<std::vector<Byte>> records(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        if (!isDeleted(static_cast<std::uint32_t>(i))) records[i] = read(static_cast<std::uint32_t>(i));
+    }
+    records[slot] = std::vector<Byte>(record.begin(), record.end());
+    std::size_t required = kHeaderSize + count * kSlotSize;
+    for (const auto& bytes : records) required += bytes.size();
+    if (required > kPageSize) throw std::overflow_error("HeapPage: insufficient space for updated record");
+    std::fill(page_.data().begin(), page_.data().end(), 0);
+    writeUInt16(0, static_cast<std::uint16_t>(count));
+    std::size_t dataStart = kPageSize;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (records[i].empty()) {
+            writeSlot(static_cast<std::uint32_t>(i), Slot{kDeletedOffset, kDeletedSize});
+            continue;
+        }
+        dataStart -= records[i].size();
+        std::memcpy(page_.data().data() + dataStart, records[i].data(), records[i].size());
+        writeSlot(static_cast<std::uint32_t>(i), Slot{static_cast<std::uint16_t>(dataStart), static_cast<std::uint16_t>(records[i].size())});
+    }
+    writeUInt16(2, static_cast<std::uint16_t>(dataStart));
 }
 
 void HeapPage::erase(std::uint32_t slot)

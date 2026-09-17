@@ -65,11 +65,20 @@ bool Tuple::matchesSchema(const Schema& schema) const noexcept
         const Value& value = values_[i];
         const Column& column = schema.column(i);
 
+        // NULL is valid for any column at this layer.
+        // Nullability constraints can be introduced separately
+        // when column constraints are implemented.
         if (value.isNull()) {
             continue;
         }
 
         if (value.type() != column.type()) {
+            return false;
+        }
+
+        // VARCHAR has a schema-defined maximum length.
+        if (column.type() == DataType::Varchar &&
+            value.asString().size() > column.length()) {
             return false;
         }
     }

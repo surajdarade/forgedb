@@ -246,4 +246,61 @@ TEST(TupleTest, EmptyTupleIsValidForEmptySchema)
     EXPECT_TRUE(tuple.matchesSchema(schema));
 }
 
+TEST(TupleTest, RejectsVarcharExceedingColumnLength)
+{
+    const Schema schema{
+        {
+            Column{"name", DataType::Varchar, 5}
+        }
+    };
+
+    const Tuple tuple{
+        {
+            Value{std::string{"ForgeDB"}}
+        }
+    };
+
+    EXPECT_FALSE(
+        tuple.matchesSchema(schema)
+    );
+}
+
+TEST(TupleTest, AcceptsVarcharWithinColumnLength)
+{
+    const Schema schema{
+        {
+            Column{"name", DataType::Varchar, 10}
+        }
+    };
+
+    const Tuple tuple{
+        {
+            Value{std::string{"ForgeDB"}}
+        }
+    };
+
+    EXPECT_TRUE(
+        tuple.matchesSchema(schema)
+    );
+}
+
+TEST(TupleTest, AcceptsVarcharAtMaximumLength)
+{
+    const Schema schema{
+        {
+            Column{"name", DataType::Varchar, 7}
+        }
+    };
+
+    const Tuple tuple{
+        {
+            Value{std::string{"ForgeDB"}}
+        }
+    };
+
+    EXPECT_TRUE(
+        tuple.matchesSchema(schema)
+    );
+}
+
 } // namespace forgedb

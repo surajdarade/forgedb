@@ -53,6 +53,31 @@ public:
         return !(lhs == rhs);
     }
 
+    friend constexpr bool operator<(
+    RecordId lhs,
+    RecordId rhs
+    ) noexcept
+    {
+        if (lhs.pageId_ != rhs.pageId_) {
+            return lhs.pageId_.value() < rhs.pageId_.value();
+        }
+
+        return lhs.slot_ < rhs.slot_;
+    }
+
+    friend constexpr bool operator<(
+    RecordId lhs,
+    RecordId rhs
+    ) noexcept
+    {
+        if (lhs.pageId_ != rhs.pageId_) {
+            return lhs.pageId_.value() <
+                rhs.pageId_.value();
+        }
+
+        return lhs.slot_ < rhs.slot_;
+    }
+
 private:
     PageId pageId_{};
     SlotType slot_{0};

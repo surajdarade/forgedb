@@ -75,7 +75,7 @@ void Database::persistCatalog() {
             }
         }
         if (bytes.size() > p->data().size()) throw std::length_error("Database: catalog page is full");
-        std::fill(p->data().begin(), p->data().end(), 0);
+        std::fill(p->data().begin(), p->data().end(), Page::Byte{0});
         std::copy(bytes.begin(), bytes.end(), p->data().begin());
         bufferPoolManager_->unpinPage(PageId{0}, true);
     } catch (...) {

@@ -481,7 +481,7 @@ void BPlusTreeInternalPage::rewrite(
     std::fill(
         page_.data().begin() + kPayloadOffset,
         page_.data().end(),
-        0
+        Page::Byte{0}
     );
 
     std::copy(

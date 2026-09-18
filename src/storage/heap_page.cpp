@@ -185,7 +185,7 @@ void HeapPage::compactWithUpdatedRecord(std::uint32_t slot, std::span<const Byte
     std::size_t required = kHeaderSize + count * kSlotSize;
     for (const auto& bytes : records) required += bytes.size();
     if (required > kPageSize) throw std::overflow_error("HeapPage: insufficient space for updated record");
-    std::fill(page_.data().begin(), page_.data().end(), 0);
+    std::fill(page_.data().begin(), page_.data().end(), Page::Byte{0});
     writeUInt16(0, static_cast<std::uint16_t>(count));
     std::size_t dataStart = kPageSize;
     for (std::size_t i = 0; i < count; ++i) {

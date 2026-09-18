@@ -509,7 +509,7 @@ void BPlusTreeLeafPage::rewriteEntries(
     std::fill(
         page_.data().begin() + kHeaderSize,
         page_.data().end(),
-        0
+        Page::Byte{0}
     );
 
     std::size_t offset = kHeaderSize;

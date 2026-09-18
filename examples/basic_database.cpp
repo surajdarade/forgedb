@@ -1,39 +1,72 @@
 #include <cstdint>
+#include <iostream>
+
 #include "forgedb/database/database.h"
 
 using namespace forgedb;
 
 int main() {
-    auto db = Database::open("forgedb_example.db");
 
-    Table* users = nullptr;
-    if (db->hasTable("users")) {
-        users = &db->openTable("users");
+    // Open or create database.
+    auto db = Database::open("students.db");
+
+    // Create table if it does not exist.
+    Table* students = nullptr;
+
+    if (db->hasTable("students")) {
+
+        students = &db->openTable("students");
+
     } else {
-        users = &db->createTable(
-            "users",
+
+        students = &db->createTable(
+            "students",
             Schema{{
                 Column{"id", DataType::Int32},
-                Column{"name", DataType::Varchar, 100}
+                Column{"name", DataType::Varchar, 100},
+                Column{"age", DataType::Int32}
             }}
         );
     }
 
-    const auto insertedId = users->insert(Tuple{{
-        Value{std::int32_t{1}},
-        Value{"Suraj"}
-    }});
-    (void)insertedId;
+    // Insert rows.
+    students->insert(
+        Tuple{{
+            Value{std::int32_t{1}},
+            Value{"Suraj"},
+            Value{std::int32_t{23}}
+        }}
+    );
 
+    students->insert(
+        Tuple{{
+            Value{std::int32_t{2}},
+            Value{"Rahul"},
+            Value{std::int32_t{25}}
+        }}
+    );
+
+    // Build query:
+    // id == 1
     Query query;
+
     query.where({
         0,
         ComparisonOperator::Equal,
         Value{std::int32_t{1}}
     });
 
-    const auto rows = db->select("users", query);
-    (void)rows;
+    // Execute query.
+    const auto rows =
+        db->select("students", query);
 
+    std::cout
+        << "Rows returned: "
+        << rows.size()
+        << '\n';
+
+    // Persist buffered pages and close.
     db->close();
+
+    return 0;
 }

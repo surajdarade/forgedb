@@ -90,7 +90,7 @@ Table& Database::createTable(std::string name, Schema schema) {
     PageId metadata;
     Page* page = bufferPoolManager_->newPage(metadata);
     if (!page) throw std::runtime_error("Database: unable to allocate table metadata");
-    std::fill(page->data().begin(), page->data().end(), 0);
+    std::fill(page->data().begin(), page->data().end(), Page::Byte{0});
     bufferPoolManager_->unpinPage(metadata, true);
     auto entry = std::make_unique<TableEntry>(name, std::move(schema), metadata);
     entry->heap = std::make_unique<HeapFile>(*diskManager_, *bufferPoolManager_, metadata);

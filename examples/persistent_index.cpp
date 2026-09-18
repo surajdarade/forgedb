@@ -1,22 +1,47 @@
 #include <cstdint>
+#include <iostream>
+
 #include "forgedb/buffer/buffer_pool_manager.h"
 #include "forgedb/index/persistent_b_plus_tree.h"
 #include "forgedb/storage/disk_manager.h"
 
 int main() {
-    forgedb::DiskManager disk("forgedb_index.db");
-    forgedb::BufferPoolManager bufferPool(32, disk);
-    forgedb::PersistentBPlusTree index(bufferPool);
+    try {
+        forgedb::DiskManager disk("forgedb_index.db");
+        forgedb::BufferPoolManager bufferPool(32, disk);
+        forgedb::PersistentBPlusTree index(bufferPool);
 
-    index.insert(
-        forgedb::IndexKey{std::int32_t{42}},
-        forgedb::RecordId{forgedb::PageId{100}, 0}
-    );
+        const forgedb::IndexKey key{std::int32_t{42}};
+        const forgedb::RecordId recordId{
+            forgedb::PageId{100},
+            0
+        };
 
-    const auto result = index.lookup(
-        forgedb::IndexKey{std::int32_t{42}}
-    );
+        index.insert(key, recordId);
 
-    (void)result;
-    bufferPool.flushAllPages();
+        std::cout << "Inserted key 42.\n";
+
+        const auto result = index.lookup(key);
+
+        std::cout << "Lookup returned "
+                  << result.size()
+                  << " record(s).\n";
+
+        if (!result.empty()) {
+            std::cout << "Record found successfully.\n";
+        }
+
+        bufferPool.flushAllPages();
+
+        std::cout << "Persistent index example completed successfully.\n";
+
+        return 0;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "ForgeDB error: "
+                  << e.what()
+                  << '\n';
+
+        return 1;
+    }
 }

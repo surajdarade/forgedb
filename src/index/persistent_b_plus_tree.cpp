@@ -59,7 +59,7 @@ PersistentBPlusTree::PersistentBPlusTree(
     Page* page = bufferPoolManager_.newPage(pageId);
     if (!page) throw std::runtime_error("PersistentBPlusTree: unable to allocate metadata page");
     metadataPageId_ = pageId;
-    std::fill(page->data().begin(), page->data().end(), 0);
+    std::fill(page->data().begin(), page->data().end(), Page::Byte{0});
     writeU64(*page, kMetadataMagicOffset, kBPlusTreeMetadataMagic);
     writeU32(*page, kMetadataVersionOffset, kBPlusTreeMetadataVersion);
     writeU64(*page, kMetadataRootPageIdOffset, 0);

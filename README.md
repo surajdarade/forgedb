@@ -1,8 +1,10 @@
 # ForgeDB
 
-ForgeDB is a C++20 embedded database engine built from first principles. It is an independent C++ implementation inspired by the engineering topics covered by the `sepgh/testudo` database-from-scratch project; it does **not** copy the Java implementation source.
+ForgeDB is a C++20 embedded database engine built from first principles.
 
-## Implemented engine
+It is designed as a compact, disk-backed relational storage engine with explicit control over pages, buffering, records, indexing, querying, persistence, concurrency, and transaction infrastructure.
+
+## Implemented Engine
 
 ### Storage
 
@@ -11,142 +13,128 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Slotted `HeapPage` storage with stable `RecordId`s.
 - Heap-file page metadata for table-local page ownership.
 - Variable-length tuple records.
-- Record deletion and page compaction during larger updates.
+- Record deletion.
+- Page compaction during larger updates.
 - Little-endian binary serialization for primitive values and strings.
 
-### Buffering and caching
+### Buffering and Caching
 
 - `BufferPoolManager` with pin/unpin semantics.
-- LRU replacement.
+- LRU page replacement.
 - Dirty-page tracking.
 - Page eviction and flushing.
 - Asynchronous `WriteQueue` for background write work.
 
-### Schema and records
+### Schema and Records
 
-- `Boolean`, `Int32`, `Int64`, `Float`, `Double`, `Varchar`.
+Supported data types:
+
+- `Boolean`
+- `Int32`
+- `Int64`
+- `Float`
+- `Double`
+- `Varchar`
+
+Additional capabilities:
+
 - Nullable values.
-- Schemas and typed columns.
-- Tuple serialization/deserialization.
+- Typed schemas and columns.
+- Tuple serialization and deserialization.
 - Stable record identifiers.
+- Schema validation.
 
 ### Indexing
 
+#### B+ Tree
+
 - In-memory multi-level B+ Tree.
 - Duplicate-key support.
-- Point lookup and inclusive range scans.
-- Leaf links for sequential scans.
-- Leaf/internal split logic.
-- Deletion with redistribution, merging and root contraction.
-- Disk-backed persistent B+ Tree pages.
-- Persistent tree metadata and entry count.
-- Persistent insert, lookup, range scan and delete/rebalancing.
+- Point lookup.
+- Inclusive range scans.
+- Linked leaf pages for sequential scans.
+- Leaf-node splitting.
+- Internal-node splitting.
+- Deletion with redistribution.
+- Node merging.
+- Root contraction.
+
+#### Persistent B+ Tree
+
+- Disk-backed B+ Tree pages.
+- Persistent tree metadata.
+- Persistent entry count.
+- Persistent insert.
+- Persistent point lookup.
+- Persistent range scan.
+- Persistent deletion and rebalancing.
+
+#### Additional Indexes
+
 - Sparse 64-bit bitmap index.
 - Unique-index decorator.
 - LRU cached-index decorator.
 
-### Query layer
+### Query Layer
 
-- Predicate queries.
-- `EQ`, `NE`, `LT`, `LTE`, `GT`, `GTE` comparisons.
-- NULL equality handling.
+- Predicate-based queries.
+- Equality and inequality comparisons:
+  - `EQ`
+  - `NE`
+  - `LT`
+  - `LTE`
+  - `GT`
+  - `GTE`
+- NULL-aware equality handling.
 - Query limits.
 - Table scans.
 
-### Concurrency and transactions
+### Concurrency and Transactions
 
 - Writer-priority reader/writer lock.
-- RAII shared/exclusive guards.
-- Transaction lifecycle: begin/commit/abort.
+- RAII shared and exclusive lock guards.
+- Transaction lifecycle:
+  - Begin
+  - Commit
+  - Abort
 - Undo actions for application-level rollback.
 - Append-only write-ahead log records.
 
-### Database/catalog
+### Database and Catalog
 
 - Database open/close/checkpoint lifecycle.
-- Persistent catalog on page 0.
+- Persistent catalog stored on page 0.
 - Persistent table schemas.
 - Separate heap metadata for each table.
 - Create/open/drop table operations.
-- Query execution through the database facade.
-- Logging and graceful shutdown.
+- Database-level query execution.
+- Logging.
+- Graceful shutdown.
 
 ## Architecture
 
 ```text
-Database
-  ├── Catalog
-  ├── Query Engine
-  ├── Transaction Manager / WAL
-  ├── Table
-  │    └── HeapFile
-  │         └── HeapPage
-  ├── Persistent B+ Tree / Bitmap Index
-  └── BufferPoolManager
-       └── LRUReplacer
-            └── DiskManager
+                    Database
+                       │
+        ┌──────────────┼──────────────┐
+        │              │              │
+     Catalog      Query Engine    Transactions
+        │              │              │
+        │              │             WAL
+        │              │
+        │            Table
+        │              │
+        │          HeapFile
+        │              │
+        │          HeapPage
+        │
+        └──────────────┬──────────────┐
+                       │              │
+                Persistent B+ Tree   Bitmap Index
+                       │
+                BufferPoolManager
+                       │
+                 LRUReplacer
+                       │
+                  DiskManager
 ```
-
-The core dependency direction is intentionally kept downward:
-
-```text
-Database → Query / Transaction / Index → Record / Buffer → Storage
-```
-
-## Build
-
-ForgeDB uses CMake and C++20.
-
-```powershell
-cmake -S . -B build -G "Visual Studio 18 2026" -A x64
-cmake --build build --config Debug
-```
-
-## Example
-
-```cpp
-#include "forgedb/database/database.h"
-
-using namespace forgedb;
-
-int main() {
-    auto db = Database::open("example.db");
-
-    auto& users = db->createTable(
-        "users",
-        Schema{{
-            Column{"id", DataType::Int32},
-            Column{"name", DataType::Varchar, 100}
-        }}
-    );
-
-    users.insert(Tuple{{
-        Value{std::int32_t{1}},
-        Value{"Suraj"}
-    }});
-
-    Query query;
-    query.where({
-        0,
-        ComparisonOperator::Equal,
-        Value{std::int32_t{1}}
-    });
-
-    const auto rows = db->select("users", query);
-    db->close();
-}
-```
-
-## Design principles
-
-- C++20.
-- RAII and explicit ownership.
-- Strong page/record identifiers.
-- Persistent state separated from execution logic.
-- Correctness before micro-optimization.
-- Tests for storage, records, indexes and database behavior.
-- No Java-to-C++ line-by-line translation of the reference project.
-
-## Reference project
-
-The functional scope was guided by the public development roadmap of `sepgh/testudo`, including B+ Trees, bitmap indexes, page storage, buffer/LRU caching, serialization, nullable values, query operations, CRUD, reader-writer locking, transactions, async writes, logging and performance improvements.

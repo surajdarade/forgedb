@@ -157,3 +157,50 @@ These are exposed through the C++ API rather than SQL statements.
                             │
                         DiskManager
 ```
+
+## Build
+
+ForgeDB uses **CMake and C++20**.
+
+### Visual Studio
+
+```bash
+cmake -S . -B build -G "Visual Studio 18 2026" -A x64
+cmake --build build --config Release
+```
+
+### Run the Examples
+
+```bash
+.\build\Release\forgedb_basic_example.exe
+```
+
+```bash
+.\build\Release\forgedb_persistent_index_example.exe
+```
+
+---
+
+## Benchmark
+
+ForgeDB includes a dependency-free benchmark executable covering core storage and indexing workloads.
+
+The benchmark accepts the dataset size and buffer-pool capacity from the command line:
+
+```bash
+.\build\Release\forgedb_benchmark.exe <rows> <buffer_pool_pages>
+```
+
+### Examples
+
+```bash
+.\build\Release\forgedb_benchmark.exe 1000 64
+```
+
+```bash
+.\build\Release\forgedb_benchmark.exe 5000 64
+```
+
+```bash
+.\build\Release\forgedb_benchmark.exe 50000 256
+```

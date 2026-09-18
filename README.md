@@ -5,6 +5,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 ## Implemented engine
 
 ### Storage
+
 - Fixed-size 4 KiB pages.
 - File-backed `DiskManager` with page allocation and flush semantics.
 - Slotted `HeapPage` storage with stable `RecordId`s.
@@ -14,6 +15,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Little-endian binary serialization for primitive values and strings.
 
 ### Buffering and caching
+
 - `BufferPoolManager` with pin/unpin semantics.
 - LRU replacement.
 - Dirty-page tracking.
@@ -21,6 +23,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Asynchronous `WriteQueue` for background write work.
 
 ### Schema and records
+
 - `Boolean`, `Int32`, `Int64`, `Float`, `Double`, `Varchar`.
 - Nullable values.
 - Schemas and typed columns.
@@ -28,6 +31,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Stable record identifiers.
 
 ### Indexing
+
 - In-memory multi-level B+ Tree.
 - Duplicate-key support.
 - Point lookup and inclusive range scans.
@@ -42,6 +46,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - LRU cached-index decorator.
 
 ### Query layer
+
 - Predicate queries.
 - `EQ`, `NE`, `LT`, `LTE`, `GT`, `GTE` comparisons.
 - NULL equality handling.
@@ -49,6 +54,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Table scans.
 
 ### Concurrency and transactions
+
 - Writer-priority reader/writer lock.
 - RAII shared/exclusive guards.
 - Transaction lifecycle: begin/commit/abort.
@@ -56,6 +62,7 @@ ForgeDB is a C++20 embedded database engine built from first principles. It is a
 - Append-only write-ahead log records.
 
 ### Database/catalog
+
 - Database open/close/checkpoint lifecycle.
 - Persistent catalog on page 0.
 - Persistent table schemas.
@@ -93,12 +100,6 @@ ForgeDB uses CMake and C++20.
 ```powershell
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Debug
-```
-
-To build without tests:
-
-```powershell
-cmake -S . -B build -DFORGEDB_BUILD_TESTS=OFF
 ```
 
 ## Example

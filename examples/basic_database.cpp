@@ -30,7 +30,7 @@ int main() {
     }
 
     // Insert rows.
-    students->insert(
+    const auto surajId = students->insert(
         Tuple{{
             Value{std::int32_t{1}},
             Value{"Suraj"},
@@ -38,7 +38,7 @@ int main() {
         }}
     );
 
-    students->insert(
+    const auto rahulId = students->insert(
         Tuple{{
             Value{std::int32_t{2}},
             Value{"Rahul"},

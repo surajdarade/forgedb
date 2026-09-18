@@ -2,9 +2,9 @@
 
 ForgeDB is a C++20 embedded database engine built from first principles.
 
-It is designed as a compact, disk-backed relational storage engine with explicit control over pages, buffering, records, indexing, querying, persistence, concurrency, and transaction infrastructure.
+It provides a disk-backed storage engine with paged storage, buffer-pool management, heap files, persistent indexing, predicate-based queries, transaction infrastructure, concurrency control, logging, and database catalog persistence.
 
-## Implemented Engine
+## Features
 
 ### Storage
 
@@ -13,7 +13,7 @@ It is designed as a compact, disk-backed relational storage engine with explicit
 - Slotted `HeapPage` storage with stable `RecordId`s.
 - Heap-file page metadata for table-local page ownership.
 - Variable-length tuple records.
-- Record deletion.
+- Record insertion, retrieval, update, and deletion.
 - Page compaction during larger updates.
 - Little-endian binary serialization for primitive values and strings.
 
@@ -40,9 +40,9 @@ Additional capabilities:
 
 - Nullable values.
 - Typed schemas and columns.
+- Schema validation.
 - Tuple serialization and deserialization.
 - Stable record identifiers.
-- Schema validation.
 
 ### Indexing
 
@@ -52,7 +52,7 @@ Additional capabilities:
 - Duplicate-key support.
 - Point lookup.
 - Inclusive range scans.
-- Linked leaf pages for sequential scans.
+- Linked leaf nodes for sequential scans.
 - Leaf-node splitting.
 - Internal-node splitting.
 - Deletion with redistribution.
@@ -75,21 +75,42 @@ Additional capabilities:
 - Unique-index decorator.
 - LRU cached-index decorator.
 
-### Query Layer
+### Query Engine
 
-- Predicate-based queries.
-- Equality and inequality comparisons:
-  - `EQ`
-  - `NE`
-  - `LT`
-  - `LTE`
-  - `GT`
-  - `GTE`
+ForgeDB provides a programmatic predicate-based query API.
+
+Supported comparison operators:
+
+- `EQ`
+- `NE`
+- `LT`
+- `LTE`
+- `GT`
+- `GTE`
+
+Additional capabilities:
+
+- Multiple predicates.
 - NULL-aware equality handling.
 - Query limits.
 - Table scans.
+- Database-level query execution.
 
-### Concurrency and Transactions
+ForgeDB does not currently include a SQL parser or SQL statement language.
+
+### Record Operations
+
+The table layer supports record-level CRUD operations:
+
+- Insert tuples.
+- Read records by `RecordId`.
+- Scan tables.
+- Update records.
+- Delete records.
+
+These are exposed through the C++ API rather than SQL statements.
+
+### Transactions and Concurrency
 
 - Writer-priority reader/writer lock.
 - RAII shared and exclusive lock guards.
@@ -114,27 +135,25 @@ Additional capabilities:
 ## Architecture
 
 ```text
-                    Database
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-     Catalog      Query Engine    Transactions
-        │              │              │
-        │              │             WAL
-        │              │
-        │            Table
-        │              │
-        │          HeapFile
-        │              │
-        │          HeapPage
-        │
-        └──────────────┬──────────────┐
-                       │              │
-                Persistent B+ Tree   Bitmap Index
-                       │
-                BufferPoolManager
-                       │
-                 LRUReplacer
-                       │
-                  DiskManager
+                         Database
+                            │
+             ┌──────────────┼──────────────┐
+             │              │              │
+          Catalog      Query Engine    Transactions
+             │              │              │
+             │            Table           WAL
+             │              │
+             │          HeapFile
+             │              │
+             │          HeapPage
+             │
+             └──────────────┬──────────────┐
+                            │              │
+                    Persistent B+ Tree   Bitmap Index
+                            │
+                     BufferPoolManager
+                            │
+                       LRUReplacer
+                            │
+                        DiskManager
 ```

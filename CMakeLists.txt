@@ -63,6 +63,26 @@ if(FORGEDB_BUILD_EXAMPLES)
 endif()
 
 # ------------------------------------------------------------
+# Benchmarks
+# ------------------------------------------------------------
+
+option(FORGEDB_BUILD_BENCHMARKS "Build ForgeDB benchmarks" ON)
+
+if(FORGEDB_BUILD_BENCHMARKS)
+
+    add_executable(
+        forgedb_benchmark
+        benchmarks/forgedb_benchmark.cpp
+    )
+
+    target_link_libraries(
+        forgedb_benchmark
+        PRIVATE forgedb
+    )
+
+endif()
+
+# ------------------------------------------------------------
 # Installation
 # ------------------------------------------------------------
 

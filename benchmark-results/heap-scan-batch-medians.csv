@@ -1,0 +1,21 @@
+rows,version,operation,median_ms,trial_1_ms,trial_2_ms,trial_3_ms,trial_4_ms,trial_5_ms
+100000,baseline,Table insert,49.82,55.94,49.82,49.29,50.82,49.23
+100000,baseline,Heap full scan,107.48,105.29,107.48,100.29,108.30,112.12
+100000,baseline,B+ tree insert,126.47,125.56,132.53,123.02,144.58,126.47
+100000,baseline,Point lookup,79.42,83.58,72.94,76.06,79.42,81.28
+100000,baseline,Range scan,0.51,0.44,0.44,0.65,0.70,0.51
+100000,optimized,Table insert,50.21,50.21,50.78,49.35,47.77,53.50
+100000,optimized,Heap full scan,30.38,30.38,27.94,27.11,30.90,31.64
+100000,optimized,B+ tree insert,126.94,121.07,136.24,127.51,116.12,126.94
+100000,optimized,Point lookup,74.21,74.21,76.93,69.95,71.79,79.40
+100000,optimized,Range scan,0.62,0.43,0.78,0.44,0.63,0.62
+500000,baseline,Table insert,341.26,324.16,298.68,341.26,527.31,372.75
+500000,baseline,Heap full scan,690.15,638.33,597.59,729.40,858.18,690.15
+500000,baseline,B+ tree insert,707.24,707.24,677.46,815.99,665.63,747.60
+500000,baseline,Point lookup,156.02,154.99,156.02,169.60,140.89,163.89
+500000,baseline,Range scan,0.87,0.71,0.89,0.95,0.87,0.71
+500000,optimized,Table insert,308.84,298.80,298.78,357.87,308.84,356.16
+500000,optimized,Heap full scan,203.62,191.43,197.43,273.41,203.62,221.64
+500000,optimized,B+ tree insert,692.59,692.59,671.36,672.14,718.57,730.56
+500000,optimized,Point lookup,151.20,143.87,155.26,151.20,147.23,153.54
+500000,optimized,Range scan,0.74,0.65,0.94,0.74,0.70,1.22

@@ -80,6 +80,13 @@ void Table::remove(RecordId recordId)
 } // namespace forgedb
 std::vector<forgedb::Tuple> forgedb::Table::scan() {
     std::vector<Tuple> tuples;
-    for (const RecordId id : heapFile_.scan()) tuples.push_back(get(id));
+    heapFile_.forEachRecord([&](RecordId id, std::span<const std::uint8_t> bytes) {
+        Tuple tuple = TupleSerializer::deserialize(bytes);
+        tuple.setRecordId(id);
+        if (!tuple.matchesSchema(schema_)) {
+            throw std::runtime_error("Table: stored tuple does not match schema");
+        }
+        tuples.push_back(std::move(tuple));
+    });
     return tuples;
 }

@@ -258,37 +258,71 @@ std::size_t BPlusTreeLeafPage::upperBound(
 }
 
 std::vector<RecordId> BPlusTreeLeafPage::lookup(
-    const IndexKey& key) const
+    const IndexKey& key,
+    bool* continueToNextPage) const
 {
-    const auto entries = readEntries();
-
     std::vector<RecordId> result;
+    if (continueToNextPage) *continueToNextPage = true;
 
-    const auto iterator =
-        std::lower_bound(
-            entries.begin(),
-            entries.end(),
-            key,
-            [](const Entry& entry,
-               const IndexKey& value) {
-                return comparePageKeys(entry.key, value) < 0;
-            }
-        );
+    // Leaf entries are stored in sorted order as a compact serialized stream.
+    // Decode only as far as needed instead of allocating and decoding a vector
+    // of every entry for each point lookup. If a greater key is encountered,
+    // sorted order proves that neither this leaf nor later leaves can contain
+    // another match.
+    const auto data = std::span<const std::uint8_t>(
+        page_.data().data(), page_.data().size());
+    std::size_t offset = kHeaderSize;
 
-    for (auto current = iterator;
-         current != entries.end();
-         ++current) {
+    for (std::size_t i = 0; i < size(); ++i) {
+        const IndexKey currentKey = deserializeKey(data, offset);
+        const PageId pageId{Serializer::readUInt64(data, offset)};
+        const std::uint32_t slot = Serializer::readUInt32(data, offset);
+        const int comparison = comparePageKeys(currentKey, key);
 
-        if (current->key == key) {
-            result.push_back(current->recordId);
-            continue;
+        if (comparison > 0) {
+            if (continueToNextPage) *continueToNextPage = false;
+            return result;
         }
-
-        if (comparePageKeys(key, current->key) < 0) {
-            break;
+        if (comparison == 0) {
+            result.emplace_back(RecordId{pageId, slot});
         }
     }
 
+    // All entries in this leaf are <= key. The next leaf may contain the key
+    // (including duplicate keys spanning a split), or the target if routing
+    // lands at the end of the current key range.
+    return result;
+}
+
+std::vector<RecordId> BPlusTreeLeafPage::scanRange(
+    const IndexKey& lower,
+    const IndexKey& upper,
+    bool* continueToNextPage) const
+{
+    std::vector<RecordId> result;
+    if (continueToNextPage) *continueToNextPage = true;
+
+    // Walk the serialized payload once. Calling lowerBound() here would first
+    // decode the entire leaf into a temporary vector; calling keyAt() in a
+    // loop would repeatedly rescan from the beginning of the page.
+    const auto data = std::span<const std::uint8_t>(
+        page_.data().data(), page_.data().size());
+    std::size_t offset = kHeaderSize;
+
+    for (std::size_t i = 0; i < size(); ++i) {
+        const IndexKey currentKey = deserializeKey(data, offset);
+        const PageId recordPageId{Serializer::readUInt64(data, offset)};
+        const std::uint32_t recordSlot = Serializer::readUInt32(data, offset);
+
+        if (comparePageKeys(currentKey, lower) < 0) {
+            continue;
+        }
+        if (comparePageKeys(upper, currentKey) < 0) {
+            if (continueToNextPage) *continueToNextPage = false;
+            break;
+        }
+        result.emplace_back(recordPageId, recordSlot);
+    }
     return result;
 }
 
@@ -300,8 +334,37 @@ std::vector<BPlusTreeLeafPage::Entry> BPlusTreeLeafPage::entries() const {
     return readEntries();
 }
 
+BPlusTreeLeafPage::Entry BPlusTreeLeafPage::lastEntry() const {
+    if (isEmpty()) {
+        throw std::out_of_range("BPlusTreeLeafPage: empty leaf has no last entry");
+    }
+    return lastEntryAndEndOffset().first;
+}
+
 void BPlusTreeLeafPage::rewrite(const std::vector<Entry>& entries) {
     rewriteEntries(entries);
+}
+
+std::size_t BPlusTreeLeafPage::appendAtEnd(
+    const IndexKey& key,
+    RecordId recordId,
+    std::size_t endOffset)
+{
+    const Entry entry{key, recordId};
+    const std::size_t required = serializedEntrySize(entry);
+    if (endOffset < kHeaderSize || endOffset > kPageSize ||
+        required > kPageSize - endOffset) {
+        throw std::overflow_error(
+            "BPlusTreeLeafPage: insufficient free space");
+    }
+
+    writeEntry(endOffset, entry);
+    setEntryCount(size() + 1);
+    return endOffset + required;
+}
+
+std::size_t BPlusTreeLeafPage::serializedEndOffset() const {
+    return isEmpty() ? kHeaderSize : lastEntryAndEndOffset().second;
 }
 
 bool BPlusTreeLeafPage::insert(
@@ -312,6 +375,27 @@ bool BPlusTreeLeafPage::insert(
         key,
         recordId
     };
+
+    // The common append-heavy workload can update the page in place. Scan the
+    // serialized payload once, without allocating/deserializing a vector of
+    // every entry, to locate the tail and validate ordering.
+    if (!isEmpty()) {
+        const auto [last, endOffset] = lastEntryAndEndOffset();
+        if (entryEqual(last, newEntry)) {
+            return false;
+        }
+        if (entryLess(last, newEntry)) {
+            const std::size_t required = serializedEntrySize(newEntry);
+            if (required > kPageSize - endOffset) {
+                throw std::overflow_error(
+                    "BPlusTreeLeafPage: insufficient free space"
+                );
+            }
+            writeEntry(endOffset, newEntry);
+            setEntryCount(size() + 1);
+            return true;
+        }
+    }
 
     auto entries = readEntries();
 
@@ -444,6 +528,65 @@ void BPlusTreeLeafPage::writeEntry(
         buffer.data(),
         buffer.size()
     );
+}
+
+std::pair<BPlusTreeLeafPage::Entry, std::size_t>
+BPlusTreeLeafPage::lastEntryAndEndOffset() const
+{
+    if (isEmpty()) {
+        throw std::out_of_range("BPlusTreeLeafPage: empty leaf has no last entry");
+    }
+
+    const auto data = std::span<const std::uint8_t>(
+        page_.data().data(), page_.data().size());
+    std::size_t offset = kHeaderSize;
+    std::size_t lastEntryOffset = offset;
+
+    for (std::size_t i = 0; i < size(); ++i) {
+        lastEntryOffset = offset;
+        if (offset >= data.size()) {
+            throw std::runtime_error("BPlusTreeLeafPage: corrupt entry payload");
+        }
+
+        const auto tag = data[offset++];
+        switch (tag) {
+        case 0: // Int32
+        case 2: // Float
+            offset += sizeof(std::uint32_t);
+            break;
+        case 1: // Int64
+        case 3: // Double
+            offset += sizeof(std::uint64_t);
+            break;
+        case 4: { // Varchar: uint32 length followed by bytes
+            if (offset + sizeof(std::uint32_t) > data.size()) {
+                throw std::runtime_error("BPlusTreeLeafPage: corrupt varchar key");
+            }
+            std::uint32_t length = 0;
+            for (std::size_t byte = 0; byte < sizeof(length); ++byte) {
+                length |= static_cast<std::uint32_t>(data[offset + byte]) << (byte * 8);
+            }
+            offset += sizeof(length) + static_cast<std::size_t>(length);
+            break;
+        }
+        default:
+            throw std::runtime_error("BPlusTreeLeafPage: invalid key type tag");
+        }
+        offset += sizeof(std::uint64_t) + sizeof(std::uint32_t);
+        if (offset > data.size()) {
+            throw std::runtime_error("BPlusTreeLeafPage: corrupt entry payload");
+        }
+    }
+
+    std::size_t entryOffset = lastEntryOffset;
+    Entry last{
+        deserializeKey(data, entryOffset),
+        RecordId{
+            PageId{Serializer::readUInt64(data, entryOffset)},
+            Serializer::readUInt32(data, entryOffset)
+        }
+    };
+    return {std::move(last), offset};
 }
 
 std::vector<BPlusTreeLeafPage::Entry>

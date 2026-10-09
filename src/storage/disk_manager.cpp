@@ -23,6 +23,17 @@ DiskManager::DiskManager(const std::string& filePath)
             "DiskManager: failed to open database file"
         );
     }
+
+    // Cache the current file length once. Page reads and allocations are
+    // frequent; querying filesystem metadata on every operation adds overhead.
+    std::error_code error;
+    const auto initialSize = std::filesystem::file_size(filePath_, error);
+    if (error) {
+        throw std::runtime_error(
+            "DiskManager: failed to determine initial database file size"
+        );
+    }
+    fileSizeBytes_ = static_cast<std::size_t>(initialSize);
 }
 
 DiskManager::~DiskManager()
@@ -149,7 +160,10 @@ void DiskManager::writePage(
         );
     }
 
-    file_.flush();
+    const std::size_t endOffset = offset + kPageSize;
+    if (endOffset > fileSizeBytes_) {
+        fileSizeBytes_ = endOffset;
+    }
 }
 
 std::size_t DiskManager::pageCount() const
@@ -159,20 +173,7 @@ std::size_t DiskManager::pageCount() const
 
 std::size_t DiskManager::fileSize() const
 {
-    std::error_code error;
-
-    const auto size = std::filesystem::file_size(
-        filePath_,
-        error
-    );
-
-    if (error) {
-        throw std::runtime_error(
-            "DiskManager: failed to determine file size"
-        );
-    }
-
-    return static_cast<std::size_t>(size);
+    return fileSizeBytes_;
 }
 
 void DiskManager::flush()

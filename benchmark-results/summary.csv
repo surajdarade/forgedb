@@ -1,0 +1,7 @@
+phase,rows,buffer_pool_pages,trials,table_insert_ms_median,heap_scan_ms_median,bplus_insert_ms_median,point_lookup_ms_median,range_scan_ms_median,validation
+baseline_before_changes,5000,64,5,226.56,5.33,148.48,51.62,22.41,passed
+post_change,5000,64,5,4.48,4.41,129.56,47.34,18.88,passed
+post_change,6500,64,5,6.89,5.49,174.55,64.33,19.87,passed
+post_change,20000,256,1,52.08,16.37,551.57,132.41,27.83,passed
+post_change,50000,256,3,505.80,45.47,1570.23,168.68,20.16,passed
+post_change,50000,64,1,508.37,43.20,1465.72,172.64,20.76,passed

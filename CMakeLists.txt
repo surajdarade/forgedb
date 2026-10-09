@@ -97,3 +97,100 @@ install(
     DIRECTORY include/
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
+# ------------------------------------------------------------
+# Regression tests
+# ------------------------------------------------------------
+
+include(CTest)
+
+if(BUILD_TESTING)
+    add_executable(
+        forgedb_dirty_page_eviction_regression
+        tests/dirty_page_eviction_regression.cpp
+    )
+
+    target_link_libraries(
+        forgedb_dirty_page_eviction_regression
+        PRIVATE forgedb
+    )
+
+    add_test(
+        NAME dirty_page_eviction_persistence
+        COMMAND forgedb_dirty_page_eviction_regression
+    )
+endif()
+
+if(BUILD_TESTING)
+    add_executable(
+        forgedb_heap_free_space_index_regression
+        tests/heap_free_space_index_regression.cpp
+    )
+    target_link_libraries(
+        forgedb_heap_free_space_index_regression
+        PRIVATE forgedb
+    )
+    add_test(
+        NAME heap_free_space_index_variable_rows
+        COMMAND forgedb_heap_free_space_index_regression
+    )
+
+    add_executable(
+        forgedb_heap_metadata_directory_regression
+        tests/heap_metadata_directory_regression.cpp
+    )
+
+    target_link_libraries(
+        forgedb_heap_metadata_directory_regression
+        PRIVATE forgedb
+    )
+
+    add_test(
+        NAME heap_metadata_directory_overflow
+        COMMAND forgedb_heap_metadata_directory_regression
+    )
+endif()
+
+if(BUILD_TESTING)
+    add_executable(
+        forgedb_persistent_b_plus_tree_insert_regression
+        tests/persistent_b_plus_tree_insert_regression.cpp
+    )
+    target_link_libraries(
+        forgedb_persistent_b_plus_tree_insert_regression
+        PRIVATE forgedb
+    )
+    add_test(
+        NAME persistent_b_plus_tree_insert_reopen
+        COMMAND forgedb_persistent_b_plus_tree_insert_regression
+    )
+endif()
+
+if(BUILD_TESTING)
+    add_executable(
+        forgedb_persistent_b_plus_tree_range_scan_regression
+        tests/persistent_b_plus_tree_range_scan_regression.cpp
+    )
+    target_link_libraries(
+        forgedb_persistent_b_plus_tree_range_scan_regression
+        PRIVATE forgedb
+    )
+    add_test(
+        NAME persistent_b_plus_tree_range_scan
+        COMMAND forgedb_persistent_b_plus_tree_range_scan_regression
+    )
+endif()
+
+if(BUILD_TESTING)
+    add_executable(
+        forgedb_heap_scan_batch_regression
+        tests/heap_scan_batch_regression.cpp
+    )
+    target_link_libraries(
+        forgedb_heap_scan_batch_regression
+        PRIVATE forgedb
+    )
+    add_test(
+        NAME heap_batched_scan_deleted_rows_reopen
+        COMMAND forgedb_heap_scan_batch_regression
+    )
+endif()

@@ -109,6 +109,26 @@ RecordId HeapPage::insert(
     };
 }
 
+std::span<const HeapPage::Byte> HeapPage::readView(
+    std::uint32_t slot) const
+{
+    validateSlot(slot);
+    const Slot slotData = readSlot(slot);
+
+    if (slotData.offset == kDeletedOffset && slotData.size == kDeletedSize) {
+        throw std::runtime_error("HeapPage: record has been deleted");
+    }
+
+    const auto& data = page_.data();
+    const std::size_t offset = slotData.offset;
+    const std::size_t size = slotData.size;
+    if (offset > data.size() || size > data.size() - offset) {
+        throw std::runtime_error("HeapPage: record bounds are invalid");
+    }
+
+    return std::span<const Byte>(data.data() + offset, size);
+}
+
 std::vector<HeapPage::Byte> HeapPage::read(
     std::uint32_t slot) const
 {

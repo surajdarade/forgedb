@@ -38,6 +38,7 @@ private:
 
     std::fstream file_;
     std::string filePath_;
+    std::size_t fileSizeBytes_{0};
 };
 
 } // namespace forgedb

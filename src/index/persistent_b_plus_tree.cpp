@@ -129,42 +129,146 @@ PageId PersistentBPlusTree::findLeafPage(const IndexKey& key) const {
 }
 
 bool PersistentBPlusTree::insert(const IndexKey& key, RecordId recordId) {
-    if (!rootPageId_) rootPageId_ = createLeafRoot();
-    if (!insertIntoLeaf(key, recordId)) return false;
+    if (!rootPageId_) {
+        rootPageId_ = createLeafRoot();
+        rightmostLeafPageId_ = *rootPageId_;
+        rightmostLeafMaxKey_.reset();
+        rightmostLeafEndOffset_ = BPlusTreeLeafPage::kHeaderSize;
+    }
+
+    if (!rightmostLeafPageId_) {
+        rightmostLeafPageId_ = findRightmostLeafPage();
+    }
+    if (!rightmostLeafMaxKey_ || !rightmostLeafEndOffset_) {
+        Page* rightmostPage = bufferPoolManager_.fetchPage(*rightmostLeafPageId_);
+        if (!rightmostPage) throw std::runtime_error("PersistentBPlusTree: rightmost leaf fetch failed");
+        BPlusTreeLeafPage rightmost(*rightmostPage);
+        if (!rightmost.isEmpty() && !rightmostLeafMaxKey_)
+            rightmostLeafMaxKey_ = rightmost.lastEntry().key;
+        rightmostLeafEndOffset_ = rightmost.serializedEndOffset();
+        if (!bufferPoolManager_.unpinPage(*rightmostLeafPageId_, false))
+            throw std::runtime_error("PersistentBPlusTree: rightmost leaf unpin failed");
+    }
+
+    // Monotonic keys can be routed directly to the cached rightmost leaf,
+    // skipping a root-to-leaf traversal for every insertion.
+    const bool appendCandidate =
+        !rightmostLeafMaxKey_ || *rightmostLeafMaxKey_ < key;
+    const PageId targetLeaf = appendCandidate
+        ? *rightmostLeafPageId_
+        : findLeafPage(key);
+
+    if (!insertIntoLeaf(targetLeaf, key, recordId)) return false;
+    // An out-of-order insertion into the rightmost leaf can shift serialized
+    // entries even though the global maximum key remains unchanged.
+    if (!appendCandidate && rightmostLeafPageId_ &&
+        targetLeaf == *rightmostLeafPageId_) {
+        rightmostLeafEndOffset_.reset();
+    }
     ++size_;
+    if (!rightmostLeafMaxKey_ || *rightmostLeafMaxKey_ < key) {
+        rightmostLeafMaxKey_ = key;
+    }
     persistMetadata();
     return true;
 }
 
-bool PersistentBPlusTree::insertIntoLeaf(const IndexKey& key, RecordId recordId) {
-    const PageId leafId = findLeafPage(key);
+PageId PersistentBPlusTree::findRightmostLeafPage() const {
+    if (!rootPageId_) throw std::runtime_error("PersistentBPlusTree: tree has no root");
+    PageId current = *rootPageId_;
+    while (true) {
+        Page* page = bufferPoolManager_.fetchPage(current);
+        if (!page) throw std::runtime_error("PersistentBPlusTree: rightmost traversal fetch failed");
+        IndexPage index(*page);
+        if (index.pageType() == IndexPageType::Leaf) {
+            if (!bufferPoolManager_.unpinPage(current, false))
+                throw std::runtime_error("PersistentBPlusTree: rightmost traversal unpin failed");
+            return current;
+        }
+        if (index.pageType() != IndexPageType::Internal) {
+            bufferPoolManager_.unpinPage(current, false);
+            throw std::runtime_error("PersistentBPlusTree: corrupt page type in rightmost traversal");
+        }
+        BPlusTreeInternalPage internal(*page);
+        const auto children = internal.children();
+        if (children.empty()) {
+            bufferPoolManager_.unpinPage(current, false);
+            throw std::runtime_error("PersistentBPlusTree: internal page has no children");
+        }
+        const PageId next = children.back();
+        if (!bufferPoolManager_.unpinPage(current, false))
+            throw std::runtime_error("PersistentBPlusTree: rightmost traversal unpin failed");
+        current = next;
+    }
+}
+
+bool PersistentBPlusTree::insertIntoLeaf(
+    PageId leafId,
+    const IndexKey& key,
+    RecordId recordId) {
     Page* page = bufferPoolManager_.fetchPage(leafId);
     if (!page) throw std::runtime_error("PersistentBPlusTree: leaf fetch failed");
     BPlusTreeLeafPage leaf(*page);
-    auto entries = leaf.entries();
-    auto it = std::lower_bound(entries.begin(), entries.end(), BPlusTreeLeafPage::Entry{key, recordId},
-        [](const auto& a, const auto& b) { if (a.key != b.key) return a.key < b.key; return a.recordId < b.recordId; });
-    if (it != entries.end() && it->key == key && it->recordId == recordId) {
-        bufferPoolManager_.unpinPage(leafId, false);
-        return false;
-    }
-    entries.insert(it, {key, recordId});
     try {
-        leaf.rewrite(entries);
-        if (!bufferPoolManager_.unpinPage(leafId, true)) throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
-        return true;
+        const bool appendToRightmost =
+            rightmostLeafPageId_ && *rightmostLeafPageId_ == leafId &&
+            rightmostLeafEndOffset_ &&
+            (!rightmostLeafMaxKey_ || *rightmostLeafMaxKey_ < key);
+        if (appendToRightmost) {
+            rightmostLeafEndOffset_ = leaf.appendAtEnd(
+                key, recordId, *rightmostLeafEndOffset_);
+            if (!bufferPoolManager_.unpinPage(leafId, true))
+                throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
+            return true;
+        }
+
+        const bool inserted = leaf.insert(key, recordId);
+        if (!bufferPoolManager_.unpinPage(leafId, inserted))
+            throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
+        return inserted;
     } catch (const std::overflow_error&) {
-        if (!bufferPoolManager_.unpinPage(leafId, false)) throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
+        if (!bufferPoolManager_.unpinPage(leafId, false))
+            throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
+        const bool wasRightmost = rightmostLeafPageId_ && *rightmostLeafPageId_ == leafId;
         const auto split = splitLeaf(leafId);
+        if (wasRightmost) {
+            rightmostLeafPageId_ = split.rightPageId;
+            rightmostLeafEndOffset_.reset();
+        }
         insertIntoParent(leafId, split.separator, split.rightPageId);
-        // Re-find after split and insert the key into the correct side.
-        const PageId target = findLeafPage(key);
+
+        // When splitting the rightmost leaf for a new maximum key, the new
+        // entry belongs on the new right page; otherwise route normally.
+        const bool newMaximum = rightmostLeafMaxKey_ && *rightmostLeafMaxKey_ < key;
+        const PageId target = wasRightmost && newMaximum
+            ? split.rightPageId
+            : findLeafPage(key);
         Page* targetPage = bufferPoolManager_.fetchPage(target);
         if (!targetPage) throw std::runtime_error("PersistentBPlusTree: target leaf fetch failed");
         BPlusTreeLeafPage targetLeaf(*targetPage);
-        const bool ok = targetLeaf.insert(key, recordId);
-        if (!bufferPoolManager_.unpinPage(target, ok)) throw std::runtime_error("PersistentBPlusTree: target leaf unpin failed");
-        return ok;
+        const bool inserted = targetLeaf.insert(key, recordId);
+        if (inserted && wasRightmost) {
+            // Recompute the cached end offset once per split, not on every
+            // append. The split may route an out-of-order key to the left half.
+            if (target != *rightmostLeafPageId_) {
+                Page* rightmostPage = bufferPoolManager_.fetchPage(*rightmostLeafPageId_);
+                if (!rightmostPage) {
+                    bufferPoolManager_.unpinPage(target, inserted);
+                    throw std::runtime_error("PersistentBPlusTree: rightmost leaf fetch failed");
+                }
+                BPlusTreeLeafPage rightmost(*rightmostPage);
+                rightmostLeafEndOffset_ = rightmost.serializedEndOffset();
+                if (!bufferPoolManager_.unpinPage(*rightmostLeafPageId_, false)) {
+                    bufferPoolManager_.unpinPage(target, inserted);
+                    throw std::runtime_error("PersistentBPlusTree: rightmost leaf unpin failed");
+                }
+            } else {
+                rightmostLeafEndOffset_ = targetLeaf.serializedEndOffset();
+            }
+        }
+        if (!bufferPoolManager_.unpinPage(target, inserted))
+            throw std::runtime_error("PersistentBPlusTree: target leaf unpin failed");
+        return inserted;
     }
 }
 
@@ -357,12 +461,12 @@ std::vector<RecordId> PersistentBPlusTree::lookup(const IndexKey& key) const {
         Page* page = bufferPoolManager_.fetchPage(current);
         if (!page) throw std::runtime_error("PersistentBPlusTree: leaf fetch failed");
         BPlusTreeLeafPage leaf(*page);
-        const auto matches = leaf.lookup(key);
+        bool continueToNextPage = true;
+        const auto matches = leaf.lookup(key, &continueToNextPage);
         result.insert(result.end(), matches.begin(), matches.end());
         const PageId next = leaf.nextPageId();
-        const bool stop = leaf.size() > 0 && key < leaf.keyAt(leaf.size() - 1) && matches.empty();
         if (!bufferPoolManager_.unpinPage(current, false)) throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
-        if (stop) break;
+        if (!continueToNextPage) break;
         current = next;
     }
     return result;
@@ -377,16 +481,12 @@ std::vector<RecordId> PersistentBPlusTree::scan(const IndexKey& lower, const Ind
         Page* page = bufferPoolManager_.fetchPage(current);
         if (!page) throw std::runtime_error("PersistentBPlusTree: leaf fetch failed");
         BPlusTreeLeafPage leaf(*page);
-        for (std::size_t i = leaf.lowerBound(lower); i < leaf.size(); ++i) {
-            const auto key = leaf.keyAt(i);
-            if (upper < key) {
-                bufferPoolManager_.unpinPage(current, false);
-                return result;
-            }
-            result.push_back(leaf.recordIdAt(i));
-        }
+        bool continueToNextPage = true;
+        const auto matches = leaf.scanRange(lower, upper, &continueToNextPage);
+        result.insert(result.end(), matches.begin(), matches.end());
         const PageId next = leaf.nextPageId();
         if (!bufferPoolManager_.unpinPage(current, false)) throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
+        if (!continueToNextPage) break;
         current = next;
     }
     return result;
@@ -408,6 +508,11 @@ bool PersistentBPlusTree::remove(const IndexKey& key, RecordId recordId) {
     const bool underflow = !rootLeaf && leaf.size() < 2;
     if (!bufferPoolManager_.unpinPage(leafId, true)) throw std::runtime_error("PersistentBPlusTree: leaf unpin failed");
     --size_;
+    // Deletes may merge/rebalance the rightmost leaf or remove its maximum key.
+    // Recompute the append target lazily before the next insertion.
+    rightmostLeafPageId_.reset();
+    rightmostLeafMaxKey_.reset();
+    rightmostLeafEndOffset_.reset();
     if (underflow) rebalanceLeaf(leafId);
     repairSeparators(*rootPageId_);
     if (size_ == 0) {

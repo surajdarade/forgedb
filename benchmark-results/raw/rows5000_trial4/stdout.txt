@@ -1,0 +1,24 @@
+ForgeDB benchmark
+=================
+
+Configuration
+  Rows: 5000
+  Buffer pool: 64 pages
+  Point lookups: 5000
+  Range scans: 50
+  Range width: 100 rows
+  Random seed: 42
+
+Table insert                          5.13 ms         974722.52 ops/s           1025.93 ns/op
+Heap table full scan                  4.08 ms        1225464.97 ops/s            816.02 ns/op
+B+ tree insert                      129.56 ms          38592.64 ops/s          25911.68 ns/op
+B+ tree point lookup                 44.99 ms         111147.57 ops/s           8997.05 ns/op
+B+ tree range scan                   21.70 ms           2303.66 ops/s         434091.22 ns/op
+
+Validation
+  Full scan rows: 5000 / 5000
+  Point lookup hits: 5000 / 5000
+  Range scan rows: 5000 / 5000
+  B+ tree entries: 5000 / 5000
+
+Benchmark completed successfully.

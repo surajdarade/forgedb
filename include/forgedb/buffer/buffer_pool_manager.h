@@ -69,7 +69,7 @@ private:
         const Frame& frame
     ) const noexcept;
 
-    [[nodiscard]] std::optional<std::size_t> findFreeFrame() const noexcept;
+    [[nodiscard]] std::optional<std::size_t> findFreeFrame() noexcept;
 
     void resetFrame(Frame& frame) noexcept;
 
@@ -77,6 +77,7 @@ private:
     DiskManager& diskManager_;
 
     std::vector<Frame> frames_;
+    std::size_t nextFreeFrame_{0};
 
     std::unordered_map<
         PageId::ValueType,

@@ -48,7 +48,21 @@ Page* BufferPoolManager::fetchPage(PageId pageId)
 
     Frame& frame = frames_[victimFrameId];
 
-    // Remove the old page from the page table.
+    // A dirty victim must reach disk before its frame is reused. Otherwise
+    // eviction silently discards modifications that have not been flushed.
+    if (frame.isOccupied && frame.isDirty) {
+        try {
+            diskManager_.writePage(frame.page.id(), frame.page);
+            frame.isDirty = false;
+        } catch (...) {
+            // victim() removed this unpinned frame from the replacer; restore
+            // its evictable status if the write fails and preserve the page.
+            replacer_.unpin(victimFrameId);
+            throw;
+        }
+    }
+
+    // Remove the old page from the page table only after any dirty data is safe.
     if (frame.isOccupied) {
         pageTable_.erase(frame.page.id().value());
     }
@@ -76,7 +90,18 @@ Page* BufferPoolManager::newPage(PageId& pageId)
 
     Frame& frame = frames_[frameId];
 
-    // Remove the old page from the page table.
+    // Reusing a victim frame must not discard dirty page contents.
+    if (frame.isOccupied && frame.isDirty) {
+        try {
+            diskManager_.writePage(frame.page.id(), frame.page);
+            frame.isDirty = false;
+        } catch (...) {
+            replacer_.unpin(frameId);
+            throw;
+        }
+    }
+
+    // Remove the old page from the page table only after any dirty data is safe.
     if (frame.isOccupied) {
         pageTable_.erase(frame.page.id().value());
     }
@@ -145,6 +170,9 @@ bool BufferPoolManager::deletePage(PageId pageId)
     replacer_.pin(frameId);
 
     resetFrame(*frame);
+    if (frameId < nextFreeFrame_) {
+        nextFreeFrame_ = frameId;
+    }
 
     return true;
 }
@@ -161,6 +189,7 @@ bool BufferPoolManager::flushPage(PageId pageId)
         pageId,
         frame->page
     );
+    diskManager_.flush();
 
     frame->isDirty = false;
 
@@ -169,6 +198,7 @@ bool BufferPoolManager::flushPage(PageId pageId)
 
 void BufferPoolManager::flushAllPages()
 {
+    bool wroteAnyPage = false;
     for (Frame& frame : frames_) {
         if (!frame.isOccupied || !frame.isDirty) {
             continue;
@@ -180,6 +210,11 @@ void BufferPoolManager::flushAllPages()
         );
 
         frame.isDirty = false;
+        wroteAnyPage = true;
+    }
+
+    if (wroteAnyPage) {
+        diskManager_.flush();
     }
 }
 
@@ -214,11 +249,20 @@ BufferPoolManager::findFrame(PageId pageId) const noexcept
     return &frames_[iterator->second];
 }
 
-std::optional<std::size_t> BufferPoolManager::findFreeFrame() const noexcept {
-    for (std::size_t i = 0; i < frames_.size(); ++i) {
-        if (!frames_[i].isOccupied) return i;
+std::optional<std::size_t> BufferPoolManager::findFreeFrame() noexcept {
+    // Frames are initially consumed in ascending order. Remember the first
+    // possible free slot instead of rescanning the occupied prefix on every
+    // allocation. Deletion moves this cursor backward when it creates a hole.
+    while (nextFreeFrame_ < frames_.size() &&
+           frames_[nextFreeFrame_].isOccupied) {
+        ++nextFreeFrame_;
     }
-    return std::nullopt;
+
+    if (nextFreeFrame_ == frames_.size()) {
+        return std::nullopt;
+    }
+
+    return nextFreeFrame_;
 }
 
 std::size_t BufferPoolManager::frameIndex(

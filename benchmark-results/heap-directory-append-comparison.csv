@@ -1,0 +1,11 @@
+rows,buffer_pool_pages,operation,previous_median_ms,optimized_median_ms,trials_each,notes
+100000,512,table_insert,55.53,53.60,5,Same Linux environment; previous version already avoided per-insert vector copies
+100000,512,heap_full_scan,103.33,109.85,5,Timing variation; no improvement claim
+100000,512,btree_insert,122.11,130.57,5,Timing variation; no improvement claim
+100000,512,point_lookup,73.40,79.87,5,Timing variation; no improvement claim
+100000,512,range_scan,0.43,0.57,5,Timing variation; no improvement claim
+500000,2048,table_insert,558.46,384.08,5,31.2 percent lower median after incremental metadata persistence
+500000,2048,heap_full_scan,585.94,701.57,5,Timing variation; no improvement claim
+500000,2048,btree_insert,663.27,754.95,5,Timing variation; no improvement claim
+500000,2048,point_lookup,149.28,200.38,5,Timing variation; no improvement claim
+500000,2048,range_scan,0.74,0.82,5,Timing variation; no improvement claim

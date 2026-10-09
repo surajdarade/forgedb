@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "forgedb/index/index_page.h"
@@ -9,6 +10,8 @@
 #include "forgedb/record/record_id.h"
 
 namespace forgedb {
+
+class PersistentBPlusTree;
 
 class BPlusTreeLeafPage final : public IndexPage {
 public:
@@ -55,13 +58,28 @@ public:
         const IndexKey& key
     ) const;
 
+    // Searches serialized entries directly. When provided, continueToNextPage
+    // is false once this leaf proves the key cannot appear in later leaves.
     [[nodiscard]] std::vector<RecordId> lookup(
-        const IndexKey& key
+        const IndexKey& key,
+        bool* continueToNextPage = nullptr
+    ) const;
+
+    // Scans one serialized leaf without materializing all entries. The output
+    // includes both bounds; continueToNextPage is false once this leaf proves
+    // that later leaves cannot contain another match.
+    [[nodiscard]] std::vector<RecordId> scanRange(
+        const IndexKey& lower,
+        const IndexKey& upper,
+        bool* continueToNextPage = nullptr
     ) const;
 
     [[nodiscard]] Entry entryAt(std::size_t index) const;
 
     [[nodiscard]] std::vector<Entry> entries() const;
+
+    // Returns the greatest entry in this leaf without materializing every entry.
+    [[nodiscard]] Entry lastEntry() const;
 
     void rewrite(const std::vector<Entry>& entries);
 
@@ -78,6 +96,8 @@ public:
     [[nodiscard]] std::size_t freeSpace() const noexcept;
 
 private:
+    friend class PersistentBPlusTree;
+
     static constexpr std::size_t kEntryHeaderSize =
         sizeof(std::uint8_t) +
         sizeof(std::uint32_t) +
@@ -98,6 +118,17 @@ private:
     );
 
     [[nodiscard]] std::vector<Entry> readEntries() const;
+
+    [[nodiscard]] std::pair<Entry, std::size_t> lastEntryAndEndOffset() const;
+
+    // Used by PersistentBPlusTree's monotonic-insert path. The caller must
+    // have established that the new key sorts after the current last key.
+    [[nodiscard]] std::size_t appendAtEnd(
+        const IndexKey& key,
+        RecordId recordId,
+        std::size_t endOffset);
+
+    [[nodiscard]] std::size_t serializedEndOffset() const;
 
     void rewriteEntries(
         const std::vector<Entry>& entries

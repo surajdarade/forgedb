@@ -1,0 +1,5 @@
+rows,buffer_pool_pages,table_insert_ms,heap_full_scan_ms,bplus_tree_insert_ms,bplus_point_lookup_ms,bplus_range_scan_ms,full_scan_validation,point_lookup_validation,range_scan_validation,bplus_entry_validation
+50000,256,37.16,49.67,62.32,90.14,0.64,passed,passed,passed,passed
+100000,512,89.40,103.32,125.67,75.33,0.44,passed,passed,passed,passed
+200000,1024,255.94,262.55,257.51,82.54,0.54,passed,passed,passed,passed
+500000,2048,1206.39,706.77,722.90,146.44,0.65,passed,passed,passed,passed

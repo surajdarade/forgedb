@@ -60,6 +60,10 @@ private:
 
     PageId metadataPageId_{};
     std::optional<PageId> rootPageId_;
+    // Cached append target for monotonic inserts; invalidated/updated on splits.
+    std::optional<PageId> rightmostLeafPageId_;
+    std::optional<IndexKey> rightmostLeafMaxKey_;
+    std::optional<std::size_t> rightmostLeafEndOffset_;
 
     std::size_t size_{0};
 
@@ -74,7 +78,10 @@ private:
         const IndexKey& key
     ) const;
 
+    PageId findRightmostLeafPage() const;
+
     bool insertIntoLeaf(
+        PageId leafPageId,
         const IndexKey& key,
         RecordId recordId
     );

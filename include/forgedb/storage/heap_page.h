@@ -46,6 +46,12 @@ public:
         std::uint32_t slot
     ) const;
 
+    // View a live record without allocating or copying. The view remains valid
+    // only while the owning page stays pinned and unmodified.
+    [[nodiscard]] std::span<const Byte> readView(
+        std::uint32_t slot
+    ) const;
+
     // Replace an existing record.
     // The replacement must fit into the current record area.
     void update(

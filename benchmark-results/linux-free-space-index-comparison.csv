@@ -1,0 +1,4 @@
+rows,buffer_pool_pages,metric,before_median_ms,after_median_ms,change_percent,trials_each
+5000,64,Table insert,4.50,2.46,-45.3,5
+10000,256,Table insert,14.50,4.92,-66.1,5
+50000,256,Table insert,540.50,42.28,-92.2,5

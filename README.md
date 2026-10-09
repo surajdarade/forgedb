@@ -1,6 +1,6 @@
 # ForgeDB
 
-ForgeDB is a C++20 embedded database engine built from first principles.
+ForgeDB is a C++ 20 embedded database engine built from first principles.
 
 It provides a disk-backed storage engine with paged storage, buffer-pool management, heap files, persistent indexing, predicate-based queries, transaction infrastructure, concurrency control, logging, and database catalog persistence.
 

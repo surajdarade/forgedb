@@ -1,0 +1,178 @@
+{
+  "method": "nearest rank; latency durations measured with steady_clock",
+  "workload": {
+    "rows": 1000000,
+    "buffer_pool_pages": 4096,
+    "sample_count_per_operation_per_trial": 10000,
+    "warmup_operations_per_operation": 1000,
+    "range_width": 100,
+    "point_keys": "deterministic uniform over full key domain",
+    "range_starts": "deterministic uniform over valid starts",
+    "measurement_type": "single-threaded per-call operation latency, post-aggregate benchmark query phases"
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "elapsed_seconds": 1.86,
+      "rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "sample_count_per_operation": 10000,
+      "B+ tree point lookup": {
+        "p50_us": 7.804,
+        "p95_us": 10.62,
+        "p99_us": 33.141,
+        "max_us": 277.185,
+        "min_us": 5.551,
+        "samples": 10000
+      },
+      "B+ tree range scan": {
+        "p50_us": 11.832,
+        "p95_us": 14.928,
+        "p99_us": 44.182,
+        "max_us": 696.515,
+        "min_us": 8.316,
+        "samples": 10000
+      }
+    },
+    {
+      "trial": 2,
+      "elapsed_seconds": 1.97,
+      "rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "sample_count_per_operation": 10000,
+      "B+ tree point lookup": {
+        "p50_us": 7.864,
+        "p95_us": 10.57,
+        "p99_us": 31.709,
+        "max_us": 362.514,
+        "min_us": 5.541,
+        "samples": 10000
+      },
+      "B+ tree range scan": {
+        "p50_us": 11.973,
+        "p95_us": 15.258,
+        "p99_us": 45.946,
+        "max_us": 321.398,
+        "min_us": 8.305,
+        "samples": 10000
+      }
+    },
+    {
+      "trial": 3,
+      "elapsed_seconds": 1.98,
+      "rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "sample_count_per_operation": 10000,
+      "B+ tree point lookup": {
+        "p50_us": 7.865,
+        "p95_us": 10.941,
+        "p99_us": 35.065,
+        "max_us": 1267.076,
+        "min_us": 5.56,
+        "samples": 10000
+      },
+      "B+ tree range scan": {
+        "p50_us": 11.872,
+        "p95_us": 16.11,
+        "p99_us": 82.383,
+        "max_us": 934.206,
+        "min_us": 8.295,
+        "samples": 10000
+      }
+    },
+    {
+      "trial": 4,
+      "elapsed_seconds": 2.22,
+      "rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "sample_count_per_operation": 10000,
+      "B+ tree point lookup": {
+        "p50_us": 8.225,
+        "p95_us": 12.593,
+        "p99_us": 46.186,
+        "max_us": 2056.774,
+        "min_us": 5.611,
+        "samples": 10000
+      },
+      "B+ tree range scan": {
+        "p50_us": 13.325,
+        "p95_us": 50.925,
+        "p99_us": 119.833,
+        "max_us": 1568.746,
+        "min_us": 8.436,
+        "samples": 10000
+      }
+    },
+    {
+      "trial": 5,
+      "elapsed_seconds": 2.15,
+      "rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "sample_count_per_operation": 10000,
+      "B+ tree point lookup": {
+        "p50_us": 8.335,
+        "p95_us": 13.976,
+        "p99_us": 83.004,
+        "max_us": 653.816,
+        "min_us": 5.67,
+        "samples": 10000
+      },
+      "B+ tree range scan": {
+        "p50_us": 12.843,
+        "p95_us": 23.534,
+        "p99_us": 113.341,
+        "max_us": 1144.628,
+        "min_us": 8.335,
+        "samples": 10000
+      }
+    }
+  ],
+  "summary": [
+    {
+      "operation": "B+ tree point lookup",
+      "dataset_rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "trials": 5,
+      "samples_per_trial": 10000,
+      "total_samples": 50000,
+      "median_of_trial_p50_us": 7.865,
+      "min_trial_p50_us": 7.804,
+      "max_trial_p50_us": 8.335,
+      "pooled_p50_us": 8.005,
+      "median_of_trial_p95_us": 10.941,
+      "min_trial_p95_us": 10.57,
+      "max_trial_p95_us": 13.976,
+      "pooled_p95_us": 11.661,
+      "median_of_trial_p99_us": 35.065,
+      "min_trial_p99_us": 31.709,
+      "max_trial_p99_us": 83.004,
+      "pooled_p99_us": 44.943,
+      "median_of_trial_max_us": 653.816,
+      "min_trial_max_us": 277.185,
+      "max_trial_max_us": 2056.774
+    },
+    {
+      "operation": "B+ tree range scan",
+      "dataset_rows": 1000000,
+      "buffer_pool_pages": 4096,
+      "trials": 5,
+      "samples_per_trial": 10000,
+      "total_samples": 50000,
+      "median_of_trial_p50_us": 11.973,
+      "min_trial_p50_us": 11.832,
+      "max_trial_p50_us": 13.325,
+      "pooled_p50_us": 12.283,
+      "median_of_trial_p95_us": 16.11,
+      "min_trial_p95_us": 14.928,
+      "max_trial_p95_us": 50.925,
+      "pooled_p95_us": 19.867,
+      "median_of_trial_p99_us": 82.383,
+      "min_trial_p99_us": 44.182,
+      "max_trial_p99_us": 119.833,
+      "pooled_p99_us": 87.944,
+      "median_of_trial_max_us": 934.206,
+      "min_trial_max_us": 321.398,
+      "max_trial_max_us": 1568.746
+    }
+  ]
+}

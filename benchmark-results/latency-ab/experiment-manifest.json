@@ -1,0 +1,46 @@
+{
+  "baseline_archive": "forgedb-btree-tail-cache-optimized.zip (pre-final low-level optimization checkpoint)",
+  "optimized_archive": "forgedb-prod(1).zip (latest supplied source archive)",
+  "same_instrumented_benchmark_source": true,
+  "instrumented_benchmark_sha256_baseline": "30af8f6551125f140dd351f4bf6b5671061b47cac743a0c396cd295cab06be2b",
+  "instrumented_benchmark_sha256_optimized": "30af8f6551125f140dd351f4bf6b5671061b47cac743a0c396cd295cab06be2b",
+  "baseline_binary_sha256": "04b29987af44a634818a8cde543b27eaf608dd21f37eda63f8cd90fe66e7cfb1",
+  "optimized_binary_sha256": "8d24e51a3ca9566e27d3bb7fdbeae60a414177ac77a8cd811b3b0d63aea3ebfb",
+  "production_source_differences": [
+    "include/forgedb/buffer/buffer_pool_manager.h",
+    "src/buffer/buffer_pool_manager.cpp",
+    "include/forgedb/storage/disk_manager.h",
+    "src/storage/disk_manager.cpp"
+  ],
+  "other_non-code_difference": [
+    "README.md"
+  ],
+  "measured_code_changes": [
+    "DiskManager cached database file length metadata",
+    "BufferPoolManager free-frame cursor",
+    "batched file-stream flushing with explicit flush points"
+  ],
+  "all_baseline_trials_passed": true,
+  "all_optimized_trials_passed": true,
+  "both_versions_ctest": "6/6 passed",
+  "rows": 1000000,
+  "buffer_pool_pages": 4096,
+  "samples_per_operation_per_trial": 10000,
+  "warmup_per_operation": 1000,
+  "trials_per_version": 5,
+  "run_order": "Alternating within each trial pair to reduce order bias",
+  "note": "No inference of crash durability or concurrency performance from this benchmark.",
+  "baseline_source_sha256": {
+    "include/forgedb/buffer/buffer_pool_manager.h": "b8a794f98d226ab40abf3864fa85c614067ccbc37a592396b55e66ee9f7e7ebe",
+    "src/buffer/buffer_pool_manager.cpp": "459d750692567bf11eb75b7dea7e48b9c9792da0392d9385a6ce11d9d33257e4",
+    "include/forgedb/storage/disk_manager.h": "4a4d884bf07cf4e100d29f7e712ca69f9d7265b0b4aee27f719f01ca3be6b676",
+    "src/storage/disk_manager.cpp": "772f58f29d31a1252b1dfa422d311d425b82746936a63dd56ccefb9016f3dbb7"
+  },
+  "optimized_source_sha256": {
+    "include/forgedb/buffer/buffer_pool_manager.h": "2eb0da4027eab02e76aaec38bdc1c0abe18d5a87c23090719845b954a797927b",
+    "src/buffer/buffer_pool_manager.cpp": "22061fbdc9b723b6b169611112bb72561ceaee396be1fea21a95d07ee38e2621",
+    "include/forgedb/storage/disk_manager.h": "53174073fcbb4c1d62c39587261b2eda54f027e197b357760b2abf503f189ceb",
+    "src/storage/disk_manager.cpp": "1b16c0c50d0655b9c0d84c7ffcae6db3c454d54500265d06191c4aa6c70c47d4"
+  },
+  "baseline_checkpoint_note": "The baseline differs from optimized production code in the four listed BufferPoolManager/DiskManager files. README also differed, but was not compiled."
+}

@@ -1,0 +1,31 @@
+ForgeDB percentile latency benchmark validation
+Date: 2026-10-17
+Source: user-uploaded forgedb-prod(1).zip, with benchmarks/forgedb_benchmark.cpp extended to collect per-operation latency samples
+
+Build
+- CMake Release configure: passed
+- CMake Release build: passed
+- Compiler: GCC 14.2.0
+- CMake: 3.31.6
+- C++ standard: C++20
+- Existing warnings: examples/basic_database.cpp has two existing unused-variable warnings (surajId, rahulId)
+
+Regression tests
+- CTest: 6/6 passed
+  - dirty_page_eviction_persistence
+  - heap_free_space_index_variable_rows
+  - heap_metadata_directory_overflow
+  - persistent_b_plus_tree_insert_reopen
+  - persistent_b_plus_tree_range_scan
+  - heap_batched_scan_deleted_rows_reopen
+
+Percentile runs
+- Workload: 1,000,000 rows / 4,096 buffer-pool pages / 10,000 latency samples per operation / 1,000 warm-up operations per operation
+- Trials: 5 independent process invocations
+- Operations sampled: persistent B+ tree point lookup and persistent B+ tree range scan
+- Samples collected: 10,000 per operation per trial; 50,000 pooled samples per operation
+- Each trial exit code: 0
+- All benchmark consistency and per-sample result-count validations passed
+- Raw timing samples and per-trial output are stored in trial1/ through trial5/
+
+This is a percentile benchmark for the latest optimized source only. No matching historical baseline executable with equivalent per-operation sampling was present in the uploaded archive. Therefore, this data does not establish before/after P50/P95/P99 improvements.

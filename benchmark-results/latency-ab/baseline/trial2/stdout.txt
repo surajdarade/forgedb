@@ -1,0 +1,30 @@
+ForgeDB benchmark
+=================
+
+Configuration
+  Rows: 1000000
+  Buffer pool: 4096 pages
+  Point lookups: 10000
+  Range scans: 50
+  Range width: 100 rows
+  Random seed: 42
+  Latency samples per operation: 10000
+
+Table insert                        724.25 ms        1380738.23 ops/s            724.25 ns/op
+Heap table full scan                524.79 ms        1905528.40 ops/s            524.79 ns/op
+B+ tree insert                      970.99 ms        1029874.34 ops/s            970.99 ns/op
+B+ tree point lookup                261.95 ms          38175.37 ops/s          26194.90 ns/op
+B+ tree range scan                    1.26 ms          39741.74 ops/s          25162.46 ns/op
+
+Per-operation latency (steady-clock samples; nearest-rank percentiles)
+B+ tree point lookup           samples=10000 p50=8.716 us p95=57.447 us p99=83.576 us max=307.833 us
+B+ tree range scan             samples=10000 p50=38.912 us p95=89.477 us p99=138.258 us max=450.830 us
+Raw samples: forgedb_latency_samples.csv
+
+Validation
+  Full scan rows: 1000000 / 1000000
+  Point lookup hits: 10000 / 10000
+  Range scan rows: 5000 / 5000
+  B+ tree entries: 1000000 / 1000000
+
+Benchmark completed successfully.

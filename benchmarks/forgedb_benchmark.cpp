@@ -2,6 +2,7 @@
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -25,8 +26,26 @@ constexpr std::size_t kDefaultBufferPoolPages = 64;
 constexpr std::size_t kMaxLookupCount = 10'000;
 constexpr std::size_t kRangeWidth = 100;
 constexpr std::size_t kMaxRangeCount = 50;
+constexpr std::size_t kDefaultLatencySamples = 10'000;
+constexpr std::size_t kLatencyWarmupCount = 1'000;
 
 constexpr std::uint32_t kRandomSeed = 42;
+
+struct LatencySample {
+    std::string operation;
+    std::size_t sampleIndex{};
+    std::int32_t lowerKey{};
+    std::int32_t upperKey{};
+    std::int64_t latencyNanoseconds{};
+    std::size_t resultCount{};
+};
+
+struct LatencySummary {
+    double p50Microseconds{};
+    double p95Microseconds{};
+    double p99Microseconds{};
+    double maxMicroseconds{};
+};
 
 struct BenchmarkResult {
     std::string name;
@@ -66,6 +85,114 @@ BenchmarkResult measure(
             : milliseconds * 1'000'000.0 /
                   static_cast<double>(operations)
     };
+}
+
+
+std::int64_t percentileNanoseconds(
+    std::vector<std::int64_t> sortedLatencies,
+    std::size_t percentile
+) {
+    if (sortedLatencies.empty()) {
+        throw std::invalid_argument(
+            "Cannot calculate latency percentiles from an empty sample."
+        );
+    }
+
+    std::sort(
+        sortedLatencies.begin(),
+        sortedLatencies.end()
+    );
+
+    // Nearest-rank percentile: sorted[ceil(p * N) - 1].
+    const std::size_t rank =
+        (sortedLatencies.size() * percentile + 99) / 100;
+    const std::size_t index = rank == 0 ? 0 : rank - 1;
+
+    return sortedLatencies[
+        std::min(index, sortedLatencies.size() - 1)
+    ];
+}
+
+LatencySummary summarizeLatencies(
+    const std::vector<LatencySample>& samples,
+    const std::string& operation
+) {
+    std::vector<std::int64_t> latencies;
+    latencies.reserve(samples.size());
+
+    for (const auto& sample : samples) {
+        if (sample.operation == operation) {
+            latencies.push_back(sample.latencyNanoseconds);
+        }
+    }
+
+    if (latencies.empty()) {
+        throw std::invalid_argument(
+            "No latency samples recorded for " + operation
+        );
+    }
+
+    const auto p50 = percentileNanoseconds(latencies, 50);
+    const auto p95 = percentileNanoseconds(latencies, 95);
+    const auto p99 = percentileNanoseconds(latencies, 99);
+    const auto maximum = *std::max_element(
+        latencies.begin(),
+        latencies.end()
+    );
+
+    constexpr double kNanosecondsPerMicrosecond = 1000.0;
+    return {
+        static_cast<double>(p50) / kNanosecondsPerMicrosecond,
+        static_cast<double>(p95) / kNanosecondsPerMicrosecond,
+        static_cast<double>(p99) / kNanosecondsPerMicrosecond,
+        static_cast<double>(maximum) / kNanosecondsPerMicrosecond
+    };
+}
+
+void printLatencySummary(
+    const std::string& operation,
+    const LatencySummary& summary,
+    std::size_t sampleCount
+) {
+    std::cout << std::left << std::setw(30) << operation
+              << std::right << " samples=" << sampleCount
+              << std::fixed << std::setprecision(3)
+              << " p50=" << summary.p50Microseconds << " us"
+              << " p95=" << summary.p95Microseconds << " us"
+              << " p99=" << summary.p99Microseconds << " us"
+              << " max=" << summary.maxMicroseconds << " us\n";
+}
+
+void writeLatencySamples(
+    const std::vector<LatencySample>& samples,
+    std::size_t rowCount,
+    std::size_t bufferPoolPages,
+    const std::filesystem::path& path
+) {
+    std::ofstream output(path, std::ios::trunc);
+    if (!output) {
+        throw std::runtime_error(
+            "Could not open latency sample CSV: " + path.string()
+        );
+    }
+
+    output << "operation,sample_index,rows,buffer_pool_pages,lower_key,upper_key,latency_ns,result_count\n";
+    for (const auto& sample : samples) {
+        output << sample.operation << ','
+               << sample.sampleIndex << ','
+               << rowCount << ','
+               << bufferPoolPages << ','
+               << sample.lowerKey << ','
+               << sample.upperKey << ','
+               << sample.latencyNanoseconds << ','
+               << sample.resultCount << '\n';
+    }
+
+    if (!output) {
+        throw std::runtime_error(
+            "Failed while writing latency sample CSV: " + path.string()
+        );
+    }
 }
 
 void printResult(const BenchmarkResult& result) {
@@ -123,20 +250,25 @@ void printUsage(const char* executable) {
     std::cout
         << "Usage:\n"
         << "  " << executable
-        << " [rows] [buffer_pool_pages]\n\n"
+        << " [rows] [buffer_pool_pages] [latency_samples]\n\n"
         << "Arguments:\n"
         << "  rows                Number of records to benchmark.\n"
-        << "  buffer_pool_pages   Number of pages in the buffer pool.\n\n"
+        << "  buffer_pool_pages   Number of pages in the buffer pool.\n"
+        << "  latency_samples     Per-operation samples for lookup and range latency.\n\n"
         << "Examples:\n"
         << "  " << executable << " 1000 64\n"
         << "  " << executable << " 5000 64\n"
-        << "  " << executable << " 50000 256\n\n"
+        << "  " << executable << " 50000 256\n"
+        << "  " << executable << " 1000000 4096 10000\n\n"
         << "Defaults:\n"
         << "  rows                "
         << kDefaultRowCount
         << '\n'
         << "  buffer_pool_pages   "
         << kDefaultBufferPoolPages
+        << "\n"
+        << "  latency_samples     "
+        << kDefaultLatencySamples
         << '\n';
 }
 
@@ -145,9 +277,10 @@ void printUsage(const char* executable) {
 int main(int argc, char* argv[]) {
     std::size_t rowCount = kDefaultRowCount;
     std::size_t bufferPoolPages = kDefaultBufferPoolPages;
+    std::size_t requestedLatencySamples = kDefaultLatencySamples;
 
     try {
-        if (argc > 3) {
+        if (argc > 4) {
             printUsage(argv[0]);
             return 1;
         }
@@ -165,6 +298,14 @@ int main(int argc, char* argv[]) {
                 parsePositiveSize(
                     argv[2],
                     "buffer pool size"
+                );
+        }
+
+        if (argc >= 4) {
+            requestedLatencySamples =
+                parsePositiveSize(
+                    argv[3],
+                    "latency sample count"
                 );
         }
     }
@@ -191,6 +332,13 @@ int main(int argc, char* argv[]) {
             (rowCount + kRangeWidth - 1) /
                 kRangeWidth
         );
+
+    const std::size_t latencySampleCount =
+        requestedLatencySamples;
+    const std::size_t latencyWarmupCount =
+        std::min(kLatencyWarmupCount, latencySampleCount);
+    std::vector<LatencySample> latencySamples;
+    latencySamples.reserve(latencySampleCount * 2);
 
     const std::string tablePath =
         "forgedb_benchmark_table.db";
@@ -234,6 +382,9 @@ int main(int argc, char* argv[]) {
 
             << "  Random seed: "
             << kRandomSeed
+            << '\n'
+            << "  Latency samples per operation: "
+            << latencySampleCount
             << "\n\n";
 
         std::vector<forgedb::RecordId> recordIds;
@@ -482,12 +633,161 @@ int main(int argc, char* argv[]) {
 
             printResult(rangeResult);
 
+            // ----------------------------------------------------
+            // Per-operation latency sampling (separate from aggregate
+            // timing so per-call clock reads do not affect above results).
+            // The sample workload is deterministic and spread over the key
+            // domain. Warm-up operations are excluded from the percentiles.
+            // ----------------------------------------------------
+
+            std::mt19937 latencyGenerator(
+                kRandomSeed + 1U
+            );
+            std::uniform_int_distribution<std::int32_t> latencyKeyDistribution(
+                0,
+                static_cast<std::int32_t>(rowCount - 1)
+            );
+
+            std::vector<std::int32_t> latencyLookupKeys;
+            latencyLookupKeys.reserve(latencySampleCount);
+            for (std::size_t i = 0; i < latencySampleCount; ++i) {
+                latencyLookupKeys.push_back(
+                    latencyKeyDistribution(latencyGenerator)
+                );
+            }
+
+            for (std::size_t i = 0; i < latencyWarmupCount; ++i) {
+                const auto warmupRecords = index.lookup(
+                    forgedb::IndexKey{latencyLookupKeys[i]}
+                );
+                if (warmupRecords.size() != 1) {
+                    throw std::runtime_error(
+                        "Latency warm-up point lookup validation failed"
+                    );
+                }
+            }
+
+            for (std::size_t i = 0; i < latencySampleCount; ++i) {
+                const auto key = latencyLookupKeys[i];
+                const auto start = Clock::now();
+                const auto records = index.lookup(
+                    forgedb::IndexKey{key}
+                );
+                const auto end = Clock::now();
+
+                latencySamples.push_back({
+                    "B+ tree point lookup",
+                    i,
+                    key,
+                    key,
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        end - start
+                    ).count(),
+                    records.size()
+                });
+            }
+
+            const std::int32_t maxRangeStart =
+                rowCount > kRangeWidth
+                    ? static_cast<std::int32_t>(rowCount - kRangeWidth)
+                    : 0;
+            std::uniform_int_distribution<std::int32_t> rangeStartDistribution(
+                0,
+                maxRangeStart
+            );
+
+            std::vector<std::int32_t> latencyRangeStarts;
+            latencyRangeStarts.reserve(latencySampleCount);
+            for (std::size_t i = 0; i < latencySampleCount; ++i) {
+                latencyRangeStarts.push_back(
+                    rangeStartDistribution(latencyGenerator)
+                );
+            }
+
+            const auto rangeUpper = [rowCount](std::int32_t lower) {
+                return std::min<std::int32_t>(
+                    static_cast<std::int32_t>(rowCount - 1),
+                    lower + static_cast<std::int32_t>(kRangeWidth - 1)
+                );
+            };
+
+            for (std::size_t i = 0; i < latencyWarmupCount; ++i) {
+                const auto lower = latencyRangeStarts[i];
+                const auto results = index.scan(
+                    forgedb::IndexKey{lower},
+                    forgedb::IndexKey{rangeUpper(lower)}
+                );
+                const auto expected = static_cast<std::size_t>(
+                    rangeUpper(lower) - lower + 1
+                );
+                if (results.size() != expected) {
+                    throw std::runtime_error(
+                        "Latency warm-up range scan validation failed"
+                    );
+                }
+            }
+
+            for (std::size_t i = 0; i < latencySampleCount; ++i) {
+                const auto lower = latencyRangeStarts[i];
+                const auto upper = rangeUpper(lower);
+                const auto start = Clock::now();
+                const auto results = index.scan(
+                    forgedb::IndexKey{lower},
+                    forgedb::IndexKey{upper}
+                );
+                const auto end = Clock::now();
+
+                latencySamples.push_back({
+                    "B+ tree range scan",
+                    i,
+                    lower,
+                    upper,
+                    std::chrono::duration_cast<std::chrono::nanoseconds>(
+                        end - start
+                    ).count(),
+                    results.size()
+                });
+            }
+
             indexEntryCount =
                 index.size();
 
             indexBufferPool.flushAllPages();
             indexDisk.flush();
         }
+
+        // --------------------------------------------------------
+        // Percentile latency summaries and raw samples
+        // --------------------------------------------------------
+
+        const auto pointLatencySummary = summarizeLatencies(
+            latencySamples,
+            "B+ tree point lookup"
+        );
+        const auto rangeLatencySummary = summarizeLatencies(
+            latencySamples,
+            "B+ tree range scan"
+        );
+
+        std::cout << "\nPer-operation latency (steady-clock samples; nearest-rank percentiles)\n";
+        printLatencySummary(
+            "B+ tree point lookup",
+            pointLatencySummary,
+            latencySampleCount
+        );
+        printLatencySummary(
+            "B+ tree range scan",
+            rangeLatencySummary,
+            latencySampleCount
+        );
+        std::cout << "Raw samples: forgedb_latency_samples.csv\n";
+
+        writeLatencySamples(
+            latencySamples,
+            rowCount,
+            bufferPoolPages,
+            "forgedb_latency_samples.csv"
+        );
 
         // --------------------------------------------------------
         // Validation
@@ -525,6 +825,31 @@ int main(int argc, char* argv[]) {
                 "Benchmark validation failed: "
                 "B+ tree entry count"
             );
+        }
+
+        if (latencySamples.size() != latencySampleCount * 2) {
+            throw std::runtime_error(
+                "Benchmark validation failed: latency sample count"
+            );
+        }
+        for (const auto& sample : latencySamples) {
+            if (sample.operation == "B+ tree point lookup") {
+                if (sample.resultCount != 1) {
+                    throw std::runtime_error(
+                        "Benchmark validation failed: percentile point lookup result count"
+                    );
+                }
+            }
+            else {
+                const auto expectedCount = static_cast<std::size_t>(
+                    sample.upperKey - sample.lowerKey + 1
+                );
+                if (sample.resultCount != expectedCount) {
+                    throw std::runtime_error(
+                        "Benchmark validation failed: percentile range scan result count"
+                    );
+                }
+            }
         }
 
         std::cout

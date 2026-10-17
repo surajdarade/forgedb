@@ -1,0 +1,3 @@
+operation,dataset_rows,buffer_pool_pages,trials,samples_per_trial,total_samples,median_of_trial_p50_us,min_trial_p50_us,max_trial_p50_us,pooled_p50_us,median_of_trial_p95_us,min_trial_p95_us,max_trial_p95_us,pooled_p95_us,median_of_trial_p99_us,min_trial_p99_us,max_trial_p99_us,pooled_p99_us,median_of_trial_max_us,min_trial_max_us,max_trial_max_us
+B+ tree point lookup,1000000,4096,5,10000,50000,7.865,7.804,8.335,8.005,10.941,10.570,13.976,11.661,35.065,31.709,83.004,44.943,653.816,277.185,2056.774
+B+ tree range scan,1000000,4096,5,10000,50000,11.973,11.832,13.325,12.283,16.110,14.928,50.925,19.867,82.383,44.182,119.833,87.944,934.206,321.398,1568.746

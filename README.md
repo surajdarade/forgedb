@@ -186,7 +186,7 @@ ForgeDB includes a dependency-free benchmark executable covering core storage an
 The benchmark accepts the dataset size and buffer-pool capacity from the command line:
 
 ```powershell
-.\build\Release\forgedb_benchmark.exe <rows> <buffer_pool_pages>
+.\build\Release\forgedb_benchmark.exe <rows> <buffer_pool_pages> [latency_samples]
 ```
 
 ### Examples
@@ -235,6 +235,23 @@ Separate same-environment Linux experiments measured the following results:
 | B+ tree point lookup | Point lookups; 50,000 rows, 256-page pool | 165.98 ms | 81.95 ms | 50.6% less time |
 
 These are separate experiments and must not be combined with the one-million-row table as if they were a single end-to-end before/after run. The insertion, range-scan, and point-lookup results are workload-specific; consult the corresponding report and CSV for trial details.
+
+#### Matched per-operation latency percentiles: baseline vs optimized
+
+The latest low-level optimization pass was tested with **the same latency-instrumented benchmark source applied to both versions**. The baseline is the `forgedb-btree-tail-cache-optimized.zip` checkpoint immediately before the final `DiskManager`/`BufferPoolManager` changes; the optimized version is this source snapshot. The combined patch caches database-file length metadata, advances a free-frame cursor rather than rescanning occupied frames, and batches file-stream flushing with explicit flush points.
+
+**Workload:** 1,000,000 integer keys, 4,096 buffer-pool pages, 10,000 measured point lookups and 10,000 measured range scans per trial, 1,000 warm-up operations per operation, five fresh runs per version. Deterministic probes span the key domain; each range scan covers up to 100 inclusive keys. Percentiles use the nearest-rank method over timings collected with `std::chrono::steady_clock` around each API call. Baseline/optimized run order alternated, and every run passed the benchmark validation checks.
+
+The table reports the **median of the five run-level percentile estimates**. This emphasizes repeatability across independent processes instead of treating every sample as a fully independent experiment.
+
+| Operation | Metric | Baseline | Optimized | Reduction |
+|---|---|---:|---:|---:|
+| B+ tree point lookup | P50 | 8.486 µs | 7.854 µs | 7.5% |
+| B+ tree point lookup | P95 | 41.337 µs | 10.971 µs | 73.5% |
+| B+ tree point lookup | P99 | 79.548 µs | 32.010 µs | 59.8% |
+| B+ tree range scan | P50 | 38.682 µs | 11.632 µs | 69.9% |
+| B+ tree range scan | P95 | 72.415 µs | 14.788 µs | 79.6% |
+| B+ tree range scan | P99 | 128.950 µs | 36.408 µs | 71.8% |
 
 #### Reproducing and interpreting results
 

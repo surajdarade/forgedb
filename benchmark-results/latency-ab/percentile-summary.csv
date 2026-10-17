@@ -1,0 +1,9 @@
+operation,metric,baseline_median_trial_us,optimized_median_trial_us,reduction_from_median_trial_pct,baseline_min_trial_us,baseline_max_trial_us,optimized_min_trial_us,optimized_max_trial_us,baseline_pooled_us,optimized_pooled_us,reduction_pooled_pct
+B+ tree point lookup,P50,8.486,7.854,7.45,8.396,8.716,7.765,8.175,8.546,7.925,7.27
+B+ tree point lookup,P95,41.337,10.971,73.46,40.035,57.447,10.089,12.544,42.018,10.931,73.98
+B+ tree point lookup,P99,79.548,32.01,59.76,65.872,85.77,24.876,49.142,79.869,32.33,59.52
+B+ tree point lookup,MAX,401.187,305.78,23.78,307.833,1276.628,159.226,4079.498,1276.628,4079.498,-219.55
+B+ tree range scan,P50,38.682,11.632,69.93,37.089,39.083,11.502,12.002,38.372,11.722,69.45
+B+ tree range scan,P95,72.415,14.788,79.58,68.958,89.477,14.447,15.118,74.94,14.778,80.28
+B+ tree range scan,P99,128.95,36.408,71.77,120.364,138.258,33.843,54.982,130.904,37.059,71.69
+B+ tree range scan,MAX,1057.4,324.444,69.32,450.83,7234.132,106.768,345.413,7234.132,345.413,95.23

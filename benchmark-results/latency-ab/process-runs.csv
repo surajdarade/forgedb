@@ -1,0 +1,11 @@
+version,trial,returncode,process_elapsed_seconds,raw_sample_csv_exists,raw_sample_bytes
+baseline,1,0,3.325174,True,1207503
+baseline,2,0,3.272802,True,1207708
+baseline,3,0,3.323555,True,1207359
+baseline,4,0,3.423417,True,1207259
+baseline,5,0,3.273501,True,1207420
+optimized,1,0,2.02061,True,1203477
+optimized,2,0,2.070245,True,1203164
+optimized,3,0,1.969369,True,1202479
+optimized,4,0,1.868999,True,1202386
+optimized,5,0,1.92066,True,1202083

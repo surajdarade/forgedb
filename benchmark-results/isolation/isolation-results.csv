@@ -1,0 +1,9 @@
+operation,variant,p50_us,p95_us,p99_us,p95_reduction_pct,p99_reduction_pct,p95_run_min_us,p95_run_max_us
+B+ tree point lookup,baseline,8.204,35.194,59.187,0.0,0.0,33.965,52.7
+B+ tree point lookup,cursor_only,7.203,10.386,17.133,70.5,71.1,9.737,12.621
+B+ tree point lookup,size_only,11.474,48.269,98.607,-37.2,-66.6,32.071,75.264
+B+ tree point lookup,shipped,7.868,11.167,20.224,68.3,65.8,9.471,13.231
+B+ tree range scan,baseline,34.114,64.961,89.086,0.0,0.0,59.953,96.958
+B+ tree range scan,cursor_only,11.024,16.324,29.385,74.9,67.0,14.805,17.798
+B+ tree range scan,size_only,39.401,78.113,118.923,-20.2,-33.5,58.694,120.326
+B+ tree range scan,shipped,11.831,18.808,32.601,71.0,63.4,16.525,21.826
